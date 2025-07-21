@@ -1,21 +1,20 @@
-mod svn;
 mod cursor;
 mod files;
+mod svn;
 use crate::{
     cursor::{move_cursor_down, move_cursor_up},
-    svn::{SvnClient, StatusEntry, style_for_status},
     files::copy_file,
+    svn::{StatusEntry, SvnClient, style_for_status},
 };
 use clap::Parser;
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
-    DefaultTerminal,
-    Frame,
+    DefaultTerminal, Frame,
     prelude::*,
+    style::{Style, Stylize},
     text::Line,
     widgets::{Block, BorderType, List, ListItem, ListState},
-    style::{Style, Stylize}
 };
 use std::{
     fs::canonicalize,
@@ -73,8 +72,9 @@ impl App {
     }
 
     fn render(&mut self, frame: &mut Frame) {
-        let [top, _bottom] = Layout::vertical([50, 50]).areas(frame.area());
-        let items: Vec<ListItem> = self.status_lines
+        let [top, _bottom] = Layout::vertical([100, 0]).areas(frame.area());
+        let items: Vec<ListItem> = self
+            .status_lines
             .iter()
             .enumerate()
             .map(|(_i, entry)| {
@@ -116,13 +116,13 @@ impl App {
             | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
             (_, KeyCode::Up | KeyCode::Char('k')) => {
                 self.selected = move_cursor_up(self.selected);
-            },
+            }
             (_, KeyCode::Down | KeyCode::Char('j')) => {
                 self.selected = move_cursor_down(self.selected, self.status_lines.len());
-            },
+            }
             (_, KeyCode::Char('y')) => {
-                copy_file(self.selected, &self.status_lines).expect("Error al copiar el archivo");
-            },
+                let _ = copy_file(self.selected, &self.status_lines).expect("Error al copiar el archivo");
+            }
             _ => {}
         }
     }
