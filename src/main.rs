@@ -1,8 +1,10 @@
 mod svn;
 mod cursor;
+mod files;
 use crate::{
     cursor::{move_cursor_down, move_cursor_up},
     svn::{SvnClient, StatusEntry, style_for_status},
+    files::copy_file,
 };
 use clap::Parser;
 use color_eyre::Result;
@@ -117,6 +119,9 @@ impl App {
             },
             (_, KeyCode::Down | KeyCode::Char('j')) => {
                 self.selected = move_cursor_down(self.selected, self.status_lines.len());
+            },
+            (_, KeyCode::Char('y')) => {
+                copy_file(self.selected, &self.status_lines).expect("Error al copiar el archivo");
             },
             _ => {}
         }
