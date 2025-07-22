@@ -1,7 +1,7 @@
 use crate::svn::StatusEntry;
 use arboard::Clipboard;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 pub fn copy_file(selected: usize, list: &[StatusEntry]) -> Result<(), arboard::Error> {
     let file_selected = &list[selected].file();

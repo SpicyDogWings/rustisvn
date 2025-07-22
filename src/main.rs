@@ -74,7 +74,8 @@ impl App {
     fn render(&mut self, frame: &mut Frame) {
         let [top, _bottom] = Layout::vertical([50, 50]).areas(frame.area());
         let items: Vec<ListItem> = self
-            .status_lines.entries()
+            .status_lines
+            .entries()
             .iter()
             .enumerate()
             .map(|(_i, entry)| {
@@ -121,7 +122,8 @@ impl App {
                 self.selected = move_cursor_down(self.selected, self.status_lines.entries().len());
             }
             (_, KeyCode::Char('y')) => {
-                let _ = copy_file(self.selected, &self.status_lines.entries()).expect("Error al copiar el archivo");
+                let _ = copy_file(self.selected, &self.status_lines.entries())
+                    .expect("Error al copiar el archivo");
             }
             _ => {}
         }
