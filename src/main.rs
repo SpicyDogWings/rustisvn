@@ -4,7 +4,7 @@ mod svn;
 use crate::{
     cursor::{move_cursor_down, move_cursor_up},
     files::copy_file,
-    svn::{StatusEntry, SvnClient, style_for_status},
+    svn::{SvnClient, SvnStatusList, style_for_status},
 };
 use clap::Parser;
 use color_eyre::Result;
@@ -44,7 +44,7 @@ pub struct App {
     running: bool,
     proyect_path: PathBuf,
     //svn: SvnClient,
-    status_lines: Vec<StatusEntry>,
+    status_lines: SvnStatusList,
     selected: usize,
 }
 
@@ -74,15 +74,15 @@ impl App {
     fn render(&mut self, frame: &mut Frame) {
         let [top, _bottom] = Layout::vertical([50, 50]).areas(frame.area());
         let items: Vec<ListItem> = self
-            .status_lines
+            .status_lines.entries()
             .iter()
             .enumerate()
             .map(|(_i, entry)| {
-                let style = style_for_status(&entry.state);
+                let style = style_for_status(&entry.state());
                 let line = Line::from(vec![
-                    Span::styled(&entry.state, style),
+                    Span::styled(String::from(&entry.state().to_string()), style),
                     Span::raw(" "),
-                    Span::raw(entry.file.to_string_lossy()),
+                    Span::raw(entry.file().to_string_lossy()),
                 ]);
                 ListItem::new(line)
             })
@@ -118,10 +118,10 @@ impl App {
                 self.selected = move_cursor_up(self.selected);
             }
             (_, KeyCode::Down | KeyCode::Char('j')) => {
-                self.selected = move_cursor_down(self.selected, self.status_lines.len());
+                self.selected = move_cursor_down(self.selected, self.status_lines.entries().len());
             }
             (_, KeyCode::Char('y')) => {
-                let _ = copy_file(self.selected, &self.status_lines).expect("Error al copiar el archivo");
+                let _ = copy_file(self.selected, &self.status_lines.entries()).expect("Error al copiar el archivo");
             }
             _ => {}
         }
