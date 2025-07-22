@@ -1,28 +1,60 @@
+use ratatui::style::{Color, Style};
 use std::{
     path::{Path, PathBuf},
-    process::{Command, Stdio}
+    process::{Command, Stdio},
 };
-use ratatui::style::{Color, Style};
 
-#[derive(Debug)]
 pub struct SvnClient {
     working_copy: PathBuf,
 }
 
 #[derive(Debug)]
 pub struct StatusEntry {
-    pub file: String,
-    pub state: String,
+    file: PathBuf,
+    state: String,
+}
+
+impl StatusEntry {
+    pub fn file(&self) -> &PathBuf {
+        &self.file
+    }
+
+    pub fn state(&self) -> &String {
+        &self.state
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct SvnStatusList {
+    entries: Vec<StatusEntry>,
+    _selections: Vec<usize>, // are ignore for a moment
+}
+
+impl SvnStatusList {
+    pub fn new(entries: Vec<StatusEntry>, _selections: Vec<usize>) -> Self {
+        SvnStatusList {
+            entries,
+            _selections,
+        }
+    }
+
+    pub fn entries(&self) -> &Vec<StatusEntry> {
+        &self.entries
+    }
+
+    pub fn _selections(&self) -> &Vec<usize> {
+        &self._selections
+    }
 }
 
 impl SvnClient {
     pub fn new<T: AsRef<Path>>(working_copy: T) -> Self {
         SvnClient {
-            working_copy: working_copy.as_ref().to_path_buf()
+            working_copy: working_copy.as_ref().to_path_buf(),
         }
     }
 
-    pub fn raw_command(&self, args:&[&str]) -> String {
+    pub fn raw_command(&self, args: &[&str]) -> String {
         let out = Command::new("svn")
             .args(args)
             .current_dir(&self.working_copy)
@@ -36,16 +68,18 @@ impl SvnClient {
         }
     }
 
-    pub fn svn_status(&self) -> Vec<StatusEntry> {
+    pub fn svn_status(&self) -> SvnStatusList {
         let out = self.raw_command(&["status"]);
-        out.lines()
+        let entries = out
+            .lines()
             .filter_map(|line| {
-                // svn status:  <estado><espacio><path>
                 let mut parts = line.splitn(2, char::is_whitespace);
                 let state = parts.next()?.to_string();
-                let file  = parts.next()?.trim().to_string();
+                let file = PathBuf::from(parts.next()?.to_string().trim());
                 Some(StatusEntry { state, file })
-            }).collect()
+            })
+            .collect();
+        SvnStatusList::new(entries, Vec::new())
     }
 }
 
@@ -57,16 +91,16 @@ impl Default for SvnClient {
 
 pub fn style_for_status(state: &str) -> Style {
     match state {
-        "M" => Style::new().fg(Color::Blue),          // Modified
-        "A" => Style::new().fg(Color::Green),         // Added
-        "D" => Style::new().fg(Color::Red),           // Deleted
-        "C" => Style::new().fg(Color::LightRed),      // Conflict
-        "?" => Style::new().fg(Color::Yellow),        // Untracked
-        "!" => Style::new().fg(Color::LightRed),      // Missing
-        "I" => Style::new().fg(Color::DarkGray),      // Ignored
-        "R" => Style::new().fg(Color::Cyan),          // Replaced
-        "X" => Style::new().fg(Color::Magenta),       // External
-        "~" => Style::new().fg(Color::LightMagenta),  // Obstructed
-        _   => Style::new(),                          // Default
+        "M" => Style::new().fg(Color::Blue),         // Modified
+        "A" => Style::new().fg(Color::Green),        // Added
+        "D" => Style::new().fg(Color::Red),          // Deleted
+        "C" => Style::new().fg(Color::LightRed),     // Conflict
+        "?" => Style::new().fg(Color::Yellow),       // Untracked
+        "!" => Style::new().fg(Color::LightRed),     // Missing
+        "I" => Style::new().fg(Color::DarkGray),     // Ignored
+        "R" => Style::new().fg(Color::Cyan),         // Replaced
+        "X" => Style::new().fg(Color::Magenta),      // External
+        "~" => Style::new().fg(Color::LightMagenta), // Obstructed
+        _ => Style::new(),                           // Default
     }
 }
