@@ -82,7 +82,7 @@ impl App {
                 let line = Line::from(vec![
                     Span::styled(&entry.state, style),
                     Span::raw(" "),
-                    Span::raw(&entry.file),
+                    Span::raw(entry.file.to_string_lossy()),
                 ]);
                 ListItem::new(line)
             })

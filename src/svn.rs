@@ -11,7 +11,7 @@ pub struct SvnClient {
 
 #[derive(Debug)]
 pub struct StatusEntry {
-    pub file: String,
+    pub file: PathBuf,
     pub state: String,
 }
 
@@ -43,7 +43,7 @@ impl SvnClient {
                 // svn status:  <estado><espacio><path>
                 let mut parts = line.splitn(2, char::is_whitespace);
                 let state = parts.next()?.to_string();
-                let file  = parts.next()?.trim().to_string();
+                let file  = PathBuf::from(parts.next()?.to_string().trim());
                 Some(StatusEntry { state, file })
             }).collect()
     }
