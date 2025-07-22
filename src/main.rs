@@ -72,7 +72,7 @@ impl App {
     }
 
     fn render(&mut self, frame: &mut Frame) {
-        let [top, _bottom] = Layout::vertical([100, 0]).areas(frame.area());
+        let [top, _bottom] = Layout::vertical([50, 50]).areas(frame.area());
         let items: Vec<ListItem> = self
             .status_lines
             .iter()
