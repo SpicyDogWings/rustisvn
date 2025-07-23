@@ -5,7 +5,7 @@ mod svn;
 use crate::{
     cursor::{move_cursor_down, move_cursor_up},
     files::copy_file,
-    renders::create_layout,
+    renders::{ProjectInfo, create_layout, create_section_info},
     svn::{SvnClient, SvnStatusList, style_for_status},
 };
 use clap::Parser;
@@ -16,7 +16,7 @@ use ratatui::{
     prelude::*,
     style::{Style, Stylize},
     text::Line,
-    widgets::{Block, BorderType, List, ListItem, ListState, Paragraph},
+    widgets::{Block, BorderType, List, ListItem, ListState},
 };
 use std::{
     fs::canonicalize,
@@ -75,8 +75,10 @@ impl App {
 
     fn render(&mut self, frame: &mut Frame) {
         let layout = create_layout(&frame);
-        let directory_path = Paragraph::new(self.proyect_path.to_string_lossy())
-            .block(Block::bordered().title("Project directory"));
+        let info = ProjectInfo::new(self.proyect_path.to_string_lossy().to_string());
+        let info_section = create_section_info(&info);
+        //let directory_path = Paragraph::new(self.proyect_path.to_string_lossy())
+        //    .block(Block::bordered().title("Project directory"));
         let items: Vec<ListItem> = self
             .status_lines
             .entries()
@@ -108,7 +110,7 @@ impl App {
             .border_type(BorderType::Rounded);
         //frame.render_stateful_widget(list, status_block, &mut state);
         //frame.render_widget(selected_list, selected_block);
-        frame.render_widget(directory_path, layout[0]);
+        frame.render_widget(info_section, layout[0]);
         frame.render_stateful_widget(list, layout[1], &mut state);
         frame.render_widget(_selected_list, layout[2]);
     }
