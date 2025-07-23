@@ -5,18 +5,16 @@ mod svn;
 use crate::{
     cursor::{move_cursor_down, move_cursor_up},
     files::copy_file,
-    renders::{ProjectInfo, create_layout, create_section_info},
-    svn::{SvnClient, SvnStatusList, style_for_status},
+    renders::{ProjectInfo, create_layout, create_section_info, create_section_status},
+    svn::{SvnClient, SvnStatusList},
 };
 use clap::Parser;
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
     DefaultTerminal, Frame,
-    prelude::*,
     style::{Style, Stylize},
-    text::Line,
-    widgets::{Block, BorderType, List, ListItem, ListState},
+    widgets::{Block, BorderType, ListState},
 };
 use std::{
     fs::canonicalize,
@@ -77,37 +75,14 @@ impl App {
         let layout = create_layout(&frame);
         let info = ProjectInfo::new(self.proyect_path.to_string_lossy().to_string());
         let info_section = create_section_info(&info);
-        let items: Vec<ListItem> = self
-            .status_lines
-            .entries()
-            .iter()
-            .enumerate()
-            .map(|(_i, entry)| {
-                let style = style_for_status(&entry.state());
-                let line = Line::from(vec![
-                    Span::styled(String::from(&entry.state().to_string()), style),
-                    Span::raw(" "),
-                    Span::raw(entry.file().to_string_lossy()),
-                ]);
-                ListItem::new(line)
-            })
-            .collect();
         let mut state = ListState::default().with_selected(Some(self.selected));
-        let list = List::new(items)
-            .block(
-                Block::bordered()
-                    .title(" Status ")
-                    .title_top(Line::from(self.proyect_path.to_string_lossy()).right_aligned())
-                    .border_style(Style::new().blue().bold())
-                    .border_type(BorderType::Rounded),
-            )
-            .highlight_style(Style::new().bg(Color::DarkGray));
+        let status_section = create_section_status(&self.status_lines);
         let _selected_list = Block::bordered()
             .title(" Selected ")
             .border_style(Style::new().gray())
             .border_type(BorderType::Rounded);
         frame.render_widget(info_section, layout[0]);
-        frame.render_stateful_widget(list, layout[1], &mut state);
+        frame.render_stateful_widget(status_section, layout[1], &mut state);
         frame.render_widget(_selected_list, layout[2]);
     }
 
