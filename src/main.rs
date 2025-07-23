@@ -1,9 +1,11 @@
 mod cursor;
 mod files;
+mod renders;
 mod svn;
 use crate::{
     cursor::{move_cursor_down, move_cursor_up},
     files::copy_file,
+    renders::create_layout,
     svn::{SvnClient, SvnStatusList, style_for_status},
 };
 use clap::Parser;
@@ -14,7 +16,7 @@ use ratatui::{
     prelude::*,
     style::{Style, Stylize},
     text::Line,
-    widgets::{Block, BorderType, List, ListItem, ListState},
+    widgets::{Block, BorderType, List, ListItem, ListState, Paragraph},
 };
 use std::{
     fs::canonicalize,
@@ -72,7 +74,9 @@ impl App {
     }
 
     fn render(&mut self, frame: &mut Frame) {
-        let [top, _bottom] = Layout::vertical([50, 50]).areas(frame.area());
+        let layout = create_layout(&frame);
+        let directory_path = Paragraph::new(self.proyect_path.to_string_lossy())
+            .block(Block::bordered().title("Project directory"));
         let items: Vec<ListItem> = self
             .status_lines
             .entries()
@@ -98,7 +102,15 @@ impl App {
                     .border_type(BorderType::Rounded),
             )
             .highlight_style(Style::new().bg(Color::DarkGray));
-        frame.render_stateful_widget(list, top, &mut state);
+        let _selected_list = Block::bordered()
+            .title(" Selected ")
+            .border_style(Style::new().gray())
+            .border_type(BorderType::Rounded);
+        //frame.render_stateful_widget(list, status_block, &mut state);
+        //frame.render_widget(selected_list, selected_block);
+        frame.render_widget(directory_path, layout[0]);
+        frame.render_stateful_widget(list, layout[1], &mut state);
+        frame.render_widget(_selected_list, layout[2]);
     }
 
     fn handle_crossterm_events(&mut self) -> Result<()> {
