@@ -5,17 +5,16 @@ mod svn;
 use crate::{
     cursor::{move_cursor_down, move_cursor_up},
     files::copy_file,
-    renders::{ProjectInfo, create_layout, create_section_info, create_section_status},
+    renders::{
+        ProjectInfo, create_layout, create_section_info, create_section_status,
+        create_selected_items,
+    },
     svn::{SvnClient, SvnStatusList},
 };
 use clap::Parser;
 use color_eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui::{
-    DefaultTerminal, Frame,
-    style::{Style, Stylize},
-    widgets::{Block, BorderType, ListState},
-};
+use ratatui::{DefaultTerminal, Frame, widgets::ListState};
 use std::{
     fs::canonicalize,
     path::{Path, PathBuf},
@@ -77,13 +76,10 @@ impl App {
         let info_section = create_section_info(&info);
         let mut state = ListState::default().with_selected(Some(self.selected));
         let status_section = create_section_status(&self.status_lines);
-        let _selected_list = Block::bordered()
-            .title(" Selected ")
-            .border_style(Style::new().gray())
-            .border_type(BorderType::Rounded);
+        let selected_list = create_selected_items(&self.status_lines);
         frame.render_widget(info_section, layout[0]);
         frame.render_stateful_widget(status_section, layout[1], &mut state);
-        frame.render_widget(_selected_list, layout[2]);
+        frame.render_widget(selected_list, layout[2]);
     }
 
     fn handle_crossterm_events(&mut self) -> Result<()> {
@@ -109,6 +105,9 @@ impl App {
             (_, KeyCode::Char('y')) => {
                 let _ = copy_file(self.selected, &self.status_lines.entries())
                     .expect("Error al copiar el archivo");
+            }
+            (_, KeyCode::Char(' ')) => {
+                self.status_lines.toggle_selection(self.selected);
             }
             _ => {}
         }

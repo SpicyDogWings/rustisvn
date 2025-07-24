@@ -1,4 +1,5 @@
 use ratatui::style::{Color, Style};
+use std::collections::HashSet;
 use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -27,14 +28,14 @@ impl StatusEntry {
 #[derive(Debug, Default)]
 pub struct SvnStatusList {
     entries: Vec<StatusEntry>,
-    _selections: Vec<usize>, // are ignore for a moment
+    selections: HashSet<usize>,
 }
 
 impl SvnStatusList {
-    pub fn new(entries: Vec<StatusEntry>, _selections: Vec<usize>) -> Self {
+    pub fn new(entries: Vec<StatusEntry>, selections: HashSet<usize>) -> Self {
         SvnStatusList {
             entries,
-            _selections,
+            selections,
         }
     }
 
@@ -42,8 +43,16 @@ impl SvnStatusList {
         &self.entries
     }
 
-    pub fn _selections(&self) -> &Vec<usize> {
-        &self._selections
+    pub fn selections(&self) -> &HashSet<usize> {
+        &self.selections
+    }
+
+    pub fn toggle_selection(&mut self, idx: usize) {
+        if self.selections.contains(&idx) {
+            self.selections.remove(&idx);
+        } else {
+            self.selections.insert(idx);
+        }
     }
 }
 
@@ -79,7 +88,7 @@ impl SvnClient {
                 Some(StatusEntry { state, file })
             })
             .collect();
-        SvnStatusList::new(entries, Vec::new())
+        SvnStatusList::new(entries, HashSet::new())
     }
 }
 
