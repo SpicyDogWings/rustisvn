@@ -6,10 +6,10 @@ use crate::{
     cursor::{move_cursor_down, move_cursor_up},
     files::copy_file,
     renders::{
-        ProjectInfo, create_layout, create_section_info, create_section_status,
-        create_selected_items,
+        ProjectInfo, create_layout, create_section_commit, create_section_info,
+        create_section_status, create_selected_items,
     },
-    svn::{SvnClient, SvnStatusList},
+    svn::{SvnClient, SvnStatusList, push_basic_commit},
 };
 use clap::Parser;
 use color_eyre::Result;
@@ -38,13 +38,22 @@ fn main() -> color_eyre::Result<()> {
     result
 }
 
+#[derive(Debug, Default, PartialEq)]
+pub enum AppMode {
+    #[default]
+    Normal,
+    Commit,
+}
+
 #[derive(Debug, Default)]
 pub struct App {
     running: bool,
     proyect_path: PathBuf,
-    //svn: SvnClient,
+    svn: SvnClient,
     status_lines: SvnStatusList,
     selected: usize,
+    mode: AppMode,
+    commit_message: String,
 }
 
 impl App {
@@ -55,9 +64,11 @@ impl App {
         Self {
             running: true,
             proyect_path: path.clone(),
-            //svn: svn,
+            svn: svn,
             status_lines,
             selected: 0,
+            mode: AppMode::Normal,
+            commit_message: "".to_string(),
         }
     }
 
@@ -75,11 +86,15 @@ impl App {
         let info = ProjectInfo::new(self.proyect_path.to_string_lossy().to_string());
         let info_section = create_section_info(&info);
         let mut state = ListState::default().with_selected(Some(self.selected));
-        let status_section = create_section_status(&self.status_lines);
+        let status_section =
+            create_section_status(&self.status_lines, self.mode == AppMode::Normal);
         let selected_list = create_selected_items(&self.status_lines);
+        let commit_section =
+            create_section_commit(self.mode == AppMode::Commit, &self.commit_message);
         frame.render_widget(info_section, layout[0]);
         frame.render_stateful_widget(status_section, layout[1], &mut state);
         frame.render_widget(selected_list, layout[2]);
+        frame.render_widget(commit_section, layout[3]);
     }
 
     fn handle_crossterm_events(&mut self) -> Result<()> {
@@ -93,23 +108,42 @@ impl App {
     }
 
     fn on_key_event(&mut self, key: KeyEvent) {
-        match (key.modifiers, key.code) {
-            (_, KeyCode::Esc | KeyCode::Char('q'))
-            | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
-            (_, KeyCode::Up | KeyCode::Char('k')) => {
-                self.selected = move_cursor_up(self.selected);
-            }
-            (_, KeyCode::Down | KeyCode::Char('j')) => {
-                self.selected = move_cursor_down(self.selected, self.status_lines.entries().len());
-            }
-            (_, KeyCode::Char('y')) => {
-                let _ = copy_file(self.selected, &self.status_lines.entries())
-                    .expect("Error al copiar el archivo");
-            }
-            (_, KeyCode::Char(' ')) => {
-                self.status_lines.toggle_selection(self.selected);
-            }
-            _ => {}
+        match self.mode {
+            AppMode::Normal => match (key.modifiers, key.code) {
+                (_, KeyCode::Esc | KeyCode::Char('q'))
+                | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
+                (_, KeyCode::Up | KeyCode::Char('k')) => {
+                    self.selected = move_cursor_up(self.selected);
+                }
+                (_, KeyCode::Down | KeyCode::Char('j')) => {
+                    self.selected =
+                        move_cursor_down(self.selected, self.status_lines.entries().len());
+                }
+                (_, KeyCode::Char('y')) => {
+                    let _ = copy_file(self.selected, &self.status_lines.entries())
+                        .expect("Error al copiar el archivo");
+                }
+                (_, KeyCode::Char(' ')) => {
+                    self.status_lines.toggle_selection(self.selected);
+                }
+                (_, KeyCode::Char('c')) => self.mode = AppMode::Commit,
+                _ => {}
+            },
+            AppMode::Commit => match (key.modifiers, key.code) {
+                (_, KeyCode::Esc) => self.mode = AppMode::Normal,
+                (_, KeyCode::Enter) => {
+                    push_basic_commit(&self.svn, &mut self.status_lines, &self.commit_message);
+                    self.commit_message.clear();
+                    self.mode = AppMode::Normal;
+                }
+                (_, KeyCode::Backspace) => {
+                    self.commit_message.pop();
+                }
+                (_, KeyCode::Char(c)) => {
+                    self.commit_message.push(c);
+                }
+                _ => {}
+            },
         }
     }
 

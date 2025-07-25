@@ -5,6 +5,7 @@ use std::{
     process::{Command, Stdio},
 };
 
+#[derive(Debug)]
 pub struct SvnClient {
     working_copy: PathBuf,
 }
@@ -112,4 +113,21 @@ pub fn style_for_status(state: &str) -> Style {
         "~" => Style::new().fg(Color::LightMagenta), // Obstructed
         _ => Style::new(),                           // Default
     }
+}
+
+pub fn push_basic_commit(
+    svn_client: &SvnClient,
+    status_lines: &mut SvnStatusList,
+    commit_message: &str,
+) {
+    let mut args = vec!["commit", "-m", commit_message];
+    let file_args: Vec<&str> = status_lines
+        .selections()
+        .iter()
+        .filter_map(|&idx| status_lines.entries().get(idx))
+        .filter_map(|entry| entry.file().to_str())
+        .collect();
+    args.extend(file_args);
+    svn_client.raw_command(&args);
+    *status_lines = svn_client.svn_status();
 }

@@ -5,19 +5,28 @@ use ratatui::{
     prelude::*,
     style::{Color, Style},
     text::{Line, Text},
-    widgets::{Block, BorderType, List, ListItem, Paragraph},
+    widgets::{Block, BorderType, List, ListItem, Paragraph, Wrap},
 };
 
 pub fn create_layout(frame: &Frame) -> Vec<Rect> {
-    Layout::default()
+    let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
             Constraint::Length(3),
-            Constraint::Percentage(45),
-            Constraint::Percentage(45),
+            Constraint::Fill(5),
+            Constraint::Min(7),
         ])
-        .split(frame.area())
-        .to_vec()
+        .split(frame.area());
+    let horizontal_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(main_chunks[2]);
+    vec![
+        main_chunks[0],
+        main_chunks[1],
+        horizontal_chunks[0],
+        horizontal_chunks[1],
+    ]
 }
 
 pub struct ProjectInfo {
@@ -43,7 +52,7 @@ pub fn create_section_info(info: &ProjectInfo) -> Paragraph {
     )
 }
 
-pub fn create_section_status(list: &SvnStatusList) -> List {
+pub fn create_section_status(list: &SvnStatusList, is_focused: bool) -> List {
     let status_list: Vec<ListItem> = list
         .entries()
         .iter()
@@ -54,13 +63,16 @@ pub fn create_section_status(list: &SvnStatusList) -> List {
             ListItem::new(line)
         })
         .collect();
+    let mut status_block = Block::bordered()
+        .title(" Status ")
+        .border_type(BorderType::Rounded);
+    if is_focused {
+        status_block = status_block.border_style(Style::new().blue().bold());
+    } else {
+        status_block = status_block.border_style(Style::new().gray());
+    }
     List::new(status_list)
-        .block(
-            Block::bordered()
-                .title(" Status ")
-                .border_style(Style::new().blue().bold())
-                .border_type(BorderType::Rounded),
-        )
+        .block(status_block)
         .highlight_style(Style::new().fg(Color::White).bg(Color::DarkGray))
 }
 
@@ -114,4 +126,18 @@ pub fn create_status_line_spans(idx: usize, list: &SvnStatusList) -> Vec<Span> {
                 .style(Style::new().fg(Color::Red)),
         ]
     }
+}
+
+pub fn create_section_commit(is_focused: bool, commit_message: &str) -> Paragraph {
+    let mut commit_block = Block::bordered()
+        .title(" Commit ")
+        .border_type(BorderType::Rounded);
+    if is_focused {
+        commit_block = commit_block.border_style(Style::new().blue().bold());
+    } else {
+        commit_block = commit_block.border_style(Style::new().gray());
+    }
+    Paragraph::new(commit_message.to_string())
+        .block(commit_block)
+        .wrap(Wrap { trim: false })
 }
