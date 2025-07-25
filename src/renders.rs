@@ -76,7 +76,7 @@ pub fn create_section_status(list: &SvnStatusList, is_focused: bool) -> List {
         .highlight_style(Style::new().fg(Color::White).bg(Color::DarkGray))
 }
 
-pub fn create_selected_items(list: &SvnStatusList) -> List {
+pub fn create_selected_items(list: &SvnStatusList, is_focused: bool) -> List {
     let selected_items: Vec<ListItem> = list
         .selections()
         .iter()
@@ -91,13 +91,17 @@ pub fn create_selected_items(list: &SvnStatusList) -> List {
             ListItem::new(line)
         })
         .collect();
+    let mut selected_block = Block::bordered()
+        .title(format!(" Selected "))
+        .border_style(Style::new())
+        .border_type(BorderType::Rounded);
+    if is_focused {
+        selected_block = selected_block.border_style(Style::new().blue().bold());
+    } else {
+        selected_block = selected_block.border_style(Style::new().gray());
+    }
     List::new(selected_items)
-        .block(
-            Block::bordered()
-                .title(format!(" Selected "))
-                .border_style(Style::new())
-                .border_type(BorderType::Rounded),
-        )
+        .block(selected_block)
         .highlight_style(Style::new().bg(Color::DarkGray))
 }
 
