@@ -55,6 +55,12 @@ impl SvnStatusList {
             self.selections.insert(idx);
         }
     }
+
+    pub fn toggle_selection_by_file(&mut self, file: &PathBuf) {
+        if let Some(idx) = self.entries().iter().position(|entry| entry.file() == file) {
+            self.selections.remove(&idx);
+        }
+    }
 }
 
 impl SvnClient {
@@ -127,6 +133,9 @@ pub fn push_basic_commit(
         .filter_map(|&idx| status_lines.entries().get(idx))
         .filter_map(|entry| entry.file().to_str())
         .collect();
+    if file_args.is_empty() {
+        return;
+    };
     args.extend(file_args);
     svn_client.raw_command(&args);
     *status_lines = svn_client.svn_status();
