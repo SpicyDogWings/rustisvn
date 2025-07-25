@@ -1,4 +1,3 @@
-
 pub fn move_cursor_down(selected: usize, lines: usize) -> usize {
     (selected + 1).min(lines.saturating_sub(1))
 }
