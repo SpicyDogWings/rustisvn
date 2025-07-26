@@ -7,7 +7,7 @@ ligera para aquellos usuarios que aún utilizen el manejador de versiones SVN;
 ## Instalación
 Por el momento solo esta disponible para linux
 ### Binario
-1. Primero debemos descargar el binario de la releace
+1. Primero debemos descargar el binario de la release
 2. Abrir la terminal y ejecutar el siguinte comando
 ```
 cp rsvn ~/.local/bin
