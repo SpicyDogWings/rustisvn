@@ -66,11 +66,7 @@ pub fn create_section_status(list: &SvnStatusList, is_focused: bool) -> List {
     let mut status_block = Block::bordered()
         .title(" Status ")
         .border_type(BorderType::Rounded);
-    if is_focused {
-        status_block = status_block.border_style(Style::new().blue().bold());
-    } else {
-        status_block = status_block.border_style(Style::new().gray());
-    }
+    status_block = is_focused_styles(is_focused, status_block);
     List::new(status_list)
         .block(status_block)
         .highlight_style(Style::new().fg(Color::White).bg(Color::DarkGray))
@@ -92,14 +88,10 @@ pub fn create_selected_items(list: &SvnStatusList, is_focused: bool) -> List {
         })
         .collect();
     let mut selected_block = Block::bordered()
-        .title(format!(" Selected "))
+        .title(" Selected ")
         .border_style(Style::new())
         .border_type(BorderType::Rounded);
-    if is_focused {
-        selected_block = selected_block.border_style(Style::new().blue().bold());
-    } else {
-        selected_block = selected_block.border_style(Style::new().gray());
-    }
+    selected_block = is_focused_styles(is_focused, selected_block);
     List::new(selected_items)
         .block(selected_block)
         .highlight_style(Style::new().bg(Color::DarkGray))
@@ -136,12 +128,16 @@ pub fn create_section_commit(is_focused: bool, commit_message: &str) -> Paragrap
     let mut commit_block = Block::bordered()
         .title(" Commit ")
         .border_type(BorderType::Rounded);
-    if is_focused {
-        commit_block = commit_block.border_style(Style::new().blue().bold());
-    } else {
-        commit_block = commit_block.border_style(Style::new().gray());
-    }
+    commit_block = is_focused_styles(is_focused, commit_block);
     Paragraph::new(commit_message.to_string())
         .block(commit_block)
         .wrap(Wrap { trim: false })
+}
+
+pub fn is_focused_styles(on_focus: bool, block: Block) -> Block {
+    if on_focus {
+        block.border_style(Style::new().blue().bold())
+    } else {
+        block.border_style(Style::new().gray())
+    }
 }
