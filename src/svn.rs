@@ -119,6 +119,23 @@ impl SvnClient {
             .collect();
         SvnStatusList::new(entries, HashSet::new())
     }
+
+    pub fn push_basic_commit(&self, status_list: &mut SvnStatusList) {
+        let mut args = vec!["commit", "-m", status_list.commit_message()];
+        let file_args: Vec<&str> = status_list
+            .selections()
+            .iter()
+            .filter_map(|&idx| status_list.entries().get(idx))
+            .filter_map(|entry| entry.file().to_str())
+            .collect();
+        if file_args.is_empty() {
+            return;
+        };
+        args.extend(file_args);
+        self.raw_command(&args);
+        *status_list = self.svn_status();
+        status_list.clear_commit_message();
+    }
 }
 
 impl Default for SvnClient {
@@ -141,21 +158,4 @@ pub fn style_for_status(state: &str) -> Style {
         "~" => Style::new().fg(Color::LightMagenta), // Obstructed
         _ => Style::new(),                           // Default
     }
-}
-
-pub fn push_basic_commit(svn_client: &SvnClient, status_list: &mut SvnStatusList) {
-    let mut args = vec!["commit", "-m", status_list.commit_message()];
-    let file_args: Vec<&str> = status_list
-        .selections()
-        .iter()
-        .filter_map(|&idx| status_list.entries().get(idx))
-        .filter_map(|entry| entry.file().to_str())
-        .collect();
-    if file_args.is_empty() {
-        return;
-    };
-    args.extend(file_args);
-    svn_client.raw_command(&args);
-    *status_list = svn_client.svn_status();
-    status_list.clear_commit_message();
 }

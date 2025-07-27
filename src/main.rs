@@ -9,7 +9,7 @@ use crate::{
         ProjectInfo, create_layout, create_section_commit, create_section_info,
         create_section_status, create_selected_items,
     },
-    svn::{SvnClient, SvnStatusList, push_basic_commit},
+    svn::{SvnClient, SvnStatusList},
 };
 use clap::Parser;
 use color_eyre::Result;
@@ -151,7 +151,7 @@ impl App {
             AppMode::Commit => match (key.modifiers, key.code) {
                 (_, KeyCode::Esc) => self.mode = AppMode::Normal,
                 (_, KeyCode::Enter) => {
-                    push_basic_commit(&self.svn, &mut self.status_list);
+                    self.svn.push_basic_commit(&mut self.status_list);
                     self.mode = AppMode::Normal;
                 }
                 (_, KeyCode::Backspace) => {
