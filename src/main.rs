@@ -9,7 +9,7 @@ use crate::{
         ProjectInfo, create_layout, create_section_commit, create_section_info,
         create_section_status, create_selected_items,
     },
-    svn::{SvnClient, SvnStatusList, push_basic_commit},
+    svn::{SvnClient, SvnStatusList},
 };
 use clap::Parser;
 use color_eyre::Result;
@@ -68,7 +68,6 @@ pub struct App {
     idx_selected_sl: usize,
     idx_selected_slist: usize,
     mode: AppMode,
-    commit_message: String,
 }
 
 impl App {
@@ -84,7 +83,6 @@ impl App {
             idx_selected_sl: 0,
             idx_selected_slist: 0,
             mode: AppMode::Normal,
-            commit_message: "".to_string(),
         }
     }
 
@@ -107,8 +105,10 @@ impl App {
         let status_section = create_section_status(&self.status_list, self.mode == AppMode::Normal);
         let selected_list =
             create_selected_items(&self.status_list, self.mode == AppMode::Selections);
-        let commit_section =
-            create_section_commit(self.mode == AppMode::Commit, &self.commit_message);
+        let commit_section = create_section_commit(
+            self.mode == AppMode::Commit,
+            self.status_list.commit_message(),
+        );
         frame.render_widget(info_section, layout[0]);
         frame.render_stateful_widget(status_section, layout[1], &mut state);
         frame.render_stateful_widget(selected_list, layout[2], &mut state_selected_list);
@@ -151,15 +151,15 @@ impl App {
             AppMode::Commit => match (key.modifiers, key.code) {
                 (_, KeyCode::Esc) => self.mode = AppMode::Normal,
                 (_, KeyCode::Enter) => {
-                    push_basic_commit(&self.svn, &mut self.status_list, &self.commit_message);
-                    self.commit_message.clear();
+                    self.svn.push_basic_commit(&mut self.status_list);
+                    self.status_list.clear_commit_message();
                     self.mode = AppMode::Normal;
                 }
                 (_, KeyCode::Backspace) => {
-                    self.commit_message.pop();
+                    self.status_list.pop_char_from_commit_message();
                 }
                 (_, KeyCode::Char(c)) => {
-                    self.commit_message.push(c);
+                    self.status_list.push_char_to_commit_message(c);
                 }
                 _ => {}
             },
