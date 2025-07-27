@@ -29,6 +29,11 @@ pub fn create_layout(frame: &Frame) -> Vec<Rect> {
     ]
 }
 
+pub struct BlockRenderStatus {
+    idx_selected: usize,
+    error: bool,
+}
+
 pub struct ProjectInfo {
     path: String,
 }
