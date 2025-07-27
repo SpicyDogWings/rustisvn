@@ -54,7 +54,7 @@ pub fn create_section_info(info: &ProjectInfo) -> Paragraph {
 
 pub fn create_section_status(list: &SvnStatusList, is_focused: bool) -> List {
     let status_list: Vec<ListItem> = list
-        .entries()
+        .entries
         .iter()
         .enumerate()
         .map(|(i, _entry)| {
@@ -74,15 +74,15 @@ pub fn create_section_status(list: &SvnStatusList, is_focused: bool) -> List {
 
 pub fn create_selected_items(list: &SvnStatusList, is_focused: bool) -> List {
     let selected_items: Vec<ListItem> = list
-        .selections()
+        .selections
         .iter()
-        .filter_map(|&idx| list.entries().get(idx))
+        .filter_map(|&idx| list.entries.get(idx))
         .map(|entry| {
-            let style = style_for_status(entry.state());
+            let style = style_for_status(&entry.state);
             let line = Line::from(vec![
-                Span::styled(entry.state().to_string(), style),
+                Span::styled(entry.state.to_string(), style),
                 Span::raw(" "),
-                Span::raw(entry.file().to_string_lossy()),
+                Span::raw(entry.file.to_string_lossy()),
             ]);
             ListItem::new(line)
         })
@@ -98,19 +98,19 @@ pub fn create_selected_items(list: &SvnStatusList, is_focused: bool) -> List {
 }
 
 pub fn create_status_line_spans(idx: usize, list: &SvnStatusList) -> Vec<Span> {
-    if let Some(entry) = list.entries().get(idx) {
+    if let Some(entry) = list.entries.get(idx) {
         let base_selected = Style::new().bg(Color::Blue).fg(Color::Black);
-        let status_span = if list.selections().contains(&idx) {
-            Span::styled(entry.state().to_string(), base_selected)
+        let status_span = if list.selections.contains(&idx) {
+            Span::styled(entry.state.to_string(), base_selected)
         } else {
-            Span::styled(entry.state().to_string(), style_for_status(entry.state()))
+            Span::styled(entry.state.to_string(), style_for_status(&entry.state))
         };
-        let file_span = if list.selections().contains(&idx) {
-            Span::styled(entry.file().to_string_lossy(), base_selected)
+        let file_span = if list.selections.contains(&idx) {
+            Span::styled(entry.file.to_string_lossy(), base_selected)
         } else {
-            Span::raw(entry.file().to_string_lossy())
+            Span::raw(entry.file.to_string_lossy())
         };
-        let divider_span = if list.selections().contains(&idx) {
+        let divider_span = if list.selections.contains(&idx) {
             Span::styled(" ", base_selected)
         } else {
             Span::raw(" ")

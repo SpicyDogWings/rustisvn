@@ -9,7 +9,7 @@ use crate::{
         ProjectInfo, create_layout, create_section_commit, create_section_info,
         create_section_status, create_selected_items,
     },
-    svn::{SvnClient, SvnStatusList},
+    svn::SvnClient,
 };
 use clap::Parser;
 use color_eyre::Result;
@@ -64,7 +64,6 @@ pub struct App {
     running: bool,
     directory: PathBuf,
     svn: SvnClient,
-    status_list: SvnStatusList,
     idx_selected_sl: usize,
     idx_selected_slist: usize,
     mode: AppMode,
@@ -73,13 +72,12 @@ pub struct App {
 impl App {
     pub fn new<T: AsRef<Path>>(directory: T) -> Self {
         let path = directory.as_ref().to_path_buf();
-        let svn = SvnClient::new(&path);
-        let status_list = svn.svn_status();
+        let mut svn = SvnClient::new(&path);
+        svn.svn_status();
         Self {
             running: true,
             directory: path.clone(),
             svn,
-            status_list,
             idx_selected_sl: 0,
             idx_selected_slist: 0,
             mode: AppMode::Normal,
@@ -102,12 +100,12 @@ impl App {
         let mut state = ListState::default().with_selected(Some(self.idx_selected_sl));
         let mut state_selected_list =
             ListState::default().with_selected(Some(self.idx_selected_slist));
-        let status_section = create_section_status(&self.status_list, self.mode == AppMode::Normal);
+        let status_section = create_section_status(&self.svn.status, self.mode == AppMode::Normal);
         let selected_list =
-            create_selected_items(&self.status_list, self.mode == AppMode::Selections);
+            create_selected_items(&self.svn.status, self.mode == AppMode::Selections);
         let commit_section = create_section_commit(
             self.mode == AppMode::Commit,
-            self.status_list.commit_message(),
+            &self.svn.status.commit_message(),
         );
         frame.render_widget(info_section, layout[0]);
         frame.render_stateful_widget(status_section, layout[1], &mut state);
@@ -135,14 +133,14 @@ impl App {
                 }
                 (_, KeyCode::Down | KeyCode::Char('j')) => {
                     self.idx_selected_sl =
-                        move_cursor_down(self.idx_selected_sl, self.status_list.entries().len());
+                        move_cursor_down(self.idx_selected_sl, self.svn.status.entries.len());
                 }
                 (_, KeyCode::Char('y')) => {
-                    let _ = copy_file(self.idx_selected_sl, &self.status_list.entries())
+                    let _ = copy_file(self.idx_selected_sl, &self.svn.status.entries)
                         .expect("Error al copiar el archivo");
                 }
                 (_, KeyCode::Char(' ')) => {
-                    self.status_list.toggle_selection(self.idx_selected_sl);
+                    self.svn.status.toggle_selection(self.idx_selected_sl);
                 }
                 (_, KeyCode::Char('c')) => self.mode = AppMode::Commit,
                 (_, KeyCode::Char('s')) => self.mode = AppMode::Selections,
@@ -151,15 +149,15 @@ impl App {
             AppMode::Commit => match (key.modifiers, key.code) {
                 (_, KeyCode::Esc) => self.mode = AppMode::Normal,
                 (_, KeyCode::Enter) => {
-                    self.svn.push_basic_commit(&mut self.status_list);
-                    self.status_list.clear_commit_message();
+                    self.svn.push_basic_commit();
+                    self.svn.status.clear_commit_message();
                     self.mode = AppMode::Normal;
                 }
                 (_, KeyCode::Backspace) => {
-                    self.status_list.pop_char_from_commit_message();
+                    self.svn.status.pop_char_from_commit_message();
                 }
                 (_, KeyCode::Char(c)) => {
-                    self.status_list.push_char_to_commit_message(c);
+                    self.svn.status.push_char_to_commit_message(c);
                 }
                 _ => {}
             },
@@ -172,22 +170,13 @@ impl App {
                     self.idx_selected_slist = move_cursor_up(self.idx_selected_slist);
                 }
                 (_, KeyCode::Down | KeyCode::Char('j')) => {
-                    self.idx_selected_slist = move_cursor_down(
-                        self.idx_selected_slist,
-                        self.status_list.selections().len(),
-                    );
+                    self.idx_selected_slist =
+                        move_cursor_down(self.idx_selected_slist, self.svn.status.selections.len());
                 }
                 (_, KeyCode::Char(' ')) => {
-                    let file_to_remove: Option<PathBuf> = self
-                        .status_list
-                        .selections()
-                        .iter()
-                        .filter_map(|&idx| self.status_list.entries().get(idx))
-                        .nth(self.idx_selected_slist)
-                        .map(|entry| entry.file().to_path_buf());
-                    if let Some(file) = file_to_remove {
-                        self.status_list.toggle_selection_by_file(&file);
-                    }
+                    self.svn
+                        .status
+                        .toggle_selection_by_file(self.idx_selected_slist);
                 }
                 _ => {}
             },
