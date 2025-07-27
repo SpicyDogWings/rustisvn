@@ -7,28 +7,20 @@ use std::{
 
 #[derive(Debug)]
 pub struct SvnStatusEntry {
-    file: PathBuf,
-    state: String,
+    pub file: PathBuf,
+    pub state: String,
 }
 
 impl SvnStatusEntry {
     pub fn new(file: PathBuf, state: String) -> Self {
         SvnStatusEntry { file, state }
     }
-
-    pub fn file(&self) -> &PathBuf {
-        &self.file
-    }
-
-    pub fn state(&self) -> &String {
-        &self.state
-    }
 }
 
 #[derive(Debug, Default)]
 pub struct SvnStatusList {
-    entries: Vec<SvnStatusEntry>,
-    selections: HashSet<usize>,
+    pub entries: Vec<SvnStatusEntry>,
+    pub selections: HashSet<usize>,
     commit_message: String,
 }
 
@@ -39,14 +31,6 @@ impl SvnStatusList {
             selections,
             commit_message: String::new(),
         }
-    }
-
-    pub fn entries(&self) -> &Vec<SvnStatusEntry> {
-        &self.entries
-    }
-
-    pub fn selections(&self) -> &HashSet<usize> {
-        &self.selections
     }
 
     pub fn commit_message(&self) -> &str {
@@ -63,17 +47,13 @@ impl SvnStatusList {
 
     pub fn toggle_selection_by_file(&mut self, idx_selected: usize) {
         let file_to_remove = self
-            .selections()
+            .selections
             .iter()
-            .filter_map(|&idx| self.entries().get(idx))
+            .filter_map(|&idx| self.entries.get(idx))
             .nth(idx_selected)
-            .map(|entry| entry.file().to_path_buf());
+            .map(|entry| entry.file.to_path_buf());
         if let Some(file) = file_to_remove {
-            if let Some(idx) = self
-                .entries()
-                .iter()
-                .position(|entry| entry.file() == &file)
-            {
+            if let Some(idx) = self.entries.iter().position(|entry| entry.file == file) {
                 self.selections.remove(&idx);
             }
         }
@@ -95,13 +75,14 @@ impl SvnStatusList {
 #[derive(Debug)]
 pub struct SvnClient {
     working_copy: PathBuf,
+    pub status: SvnStatusList,
 }
 
 impl SvnClient {
     pub fn new<T: AsRef<Path>>(working_copy: T) -> Self {
         SvnClient {
             working_copy: working_copy.as_ref().to_path_buf(),
-            // SvnStatusList
+            status: SvnStatusList::new(Vec::new(), HashSet::new()),
         }
     }
 
@@ -119,7 +100,7 @@ impl SvnClient {
         }
     }
 
-    pub fn svn_status(&self) -> SvnStatusList {
+    pub fn svn_status(&mut self) {
         let out = self.raw_command(&["status"]);
         let entries = out
             .lines()
@@ -130,23 +111,24 @@ impl SvnClient {
                 Some(SvnStatusEntry::new(file, state))
             })
             .collect();
-        SvnStatusList::new(entries, HashSet::new())
+        self.status = SvnStatusList::new(entries, HashSet::new());
     }
 
-    pub fn push_basic_commit(&self, status_list: &mut SvnStatusList) {
-        let mut args = vec!["commit", "-m", status_list.commit_message()];
-        let file_args: Vec<&str> = status_list
-            .selections()
+    pub fn push_basic_commit(&mut self) {
+        let mut args = vec!["commit", "-m", self.status.commit_message()];
+        let file_args: Vec<&str> = self
+            .status
+            .selections
             .iter()
-            .filter_map(|&idx| status_list.entries().get(idx))
-            .filter_map(|entry| entry.file().to_str())
+            .filter_map(|&idx| self.status.entries.get(idx))
+            .filter_map(|entry| entry.file.to_str())
             .collect();
         if file_args.is_empty() {
             return;
         };
         args.extend(file_args);
         self.raw_command(&args);
-        *status_list = self.svn_status();
+        self.svn_status();
     }
 }
 
