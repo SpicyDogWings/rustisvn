@@ -30,6 +30,7 @@ impl StatusEntry {
 pub struct SvnStatusList {
     entries: Vec<StatusEntry>,
     selections: HashSet<usize>,
+    commit_message: String,
 }
 
 impl SvnStatusList {
@@ -37,6 +38,7 @@ impl SvnStatusList {
         SvnStatusList {
             entries,
             selections,
+            commit_message: String::new(),
         }
     }
 
@@ -60,6 +62,26 @@ impl SvnStatusList {
         if let Some(idx) = self.entries().iter().position(|entry| entry.file() == file) {
             self.selections.remove(&idx);
         }
+    }
+
+    pub fn commit_message(&self) -> &str {
+        &self.commit_message
+    }
+
+    pub fn set_commit_message(&mut self, message: String) {
+        self.commit_message = message;
+    }
+
+    pub fn clear_commit_message(&mut self) {
+        self.commit_message.clear();
+    }
+
+    pub fn push_char_to_commit_message(&mut self, c: char) {
+        self.commit_message.push(c);
+    }
+
+    pub fn pop_char_from_commit_message(&mut self) {
+        self.commit_message.pop();
     }
 }
 
@@ -121,16 +143,12 @@ pub fn style_for_status(state: &str) -> Style {
     }
 }
 
-pub fn push_basic_commit(
-    svn_client: &SvnClient,
-    status_lines: &mut SvnStatusList,
-    commit_message: &str,
-) {
-    let mut args = vec!["commit", "-m", commit_message];
-    let file_args: Vec<&str> = status_lines
+pub fn push_basic_commit(svn_client: &SvnClient, status_list: &mut SvnStatusList) {
+    let mut args = vec!["commit", "-m", status_list.commit_message()];
+    let file_args: Vec<&str> = status_list
         .selections()
         .iter()
-        .filter_map(|&idx| status_lines.entries().get(idx))
+        .filter_map(|&idx| status_list.entries().get(idx))
         .filter_map(|entry| entry.file().to_str())
         .collect();
     if file_args.is_empty() {
@@ -138,5 +156,6 @@ pub fn push_basic_commit(
     };
     args.extend(file_args);
     svn_client.raw_command(&args);
-    *status_lines = svn_client.svn_status();
+    *status_list = svn_client.svn_status();
+    status_list.clear_commit_message();
 }
