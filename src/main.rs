@@ -152,6 +152,7 @@ impl App {
                 (_, KeyCode::Esc) => self.mode = AppMode::Normal,
                 (_, KeyCode::Enter) => {
                     self.svn.push_basic_commit(&mut self.status_list);
+                    self.status_list.clear_commit_message();
                     self.mode = AppMode::Normal;
                 }
                 (_, KeyCode::Backspace) => {

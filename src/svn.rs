@@ -134,7 +134,6 @@ impl SvnClient {
         args.extend(file_args);
         self.raw_command(&args);
         *status_list = self.svn_status();
-        status_list.clear_commit_message();
     }
 }
 
