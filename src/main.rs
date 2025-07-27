@@ -66,6 +66,7 @@ pub struct App {
     svn: SvnClient,
     idx_selected_sl: usize,
     idx_selected_slist: usize,
+    status_error: bool,
     mode: AppMode,
 }
 
@@ -80,6 +81,7 @@ impl App {
             svn,
             idx_selected_sl: 0,
             idx_selected_slist: 0,
+            status_error: false,
             mode: AppMode::Normal,
         }
     }
@@ -100,12 +102,14 @@ impl App {
         let mut state = ListState::default().with_selected(Some(self.idx_selected_sl));
         let mut state_selected_list =
             ListState::default().with_selected(Some(self.idx_selected_slist));
-        let status_section = create_section_status(&self.svn.status, self.mode == AppMode::Normal);
+        let status_section =
+            create_section_status(&self.svn.status, false, self.mode == AppMode::Normal);
         let selected_list =
-            create_selected_items(&self.svn.status, self.mode == AppMode::Selections);
+            create_selected_items(&self.svn.status, false, self.mode == AppMode::Selections);
         let commit_section = create_section_commit(
-            self.mode == AppMode::Commit,
             &self.svn.status.commit_message(),
+            self.status_error,
+            self.mode == AppMode::Commit,
         );
         frame.render_widget(info_section, layout[0]);
         frame.render_stateful_widget(status_section, layout[1], &mut state);
@@ -142,14 +146,19 @@ impl App {
                 (_, KeyCode::Char(' ')) => {
                     self.svn.status.toggle_selection(self.idx_selected_sl);
                 }
-                (_, KeyCode::Char('c')) => self.mode = AppMode::Commit,
+                (_, KeyCode::Char('c')) => {
+                    self.mode = AppMode::Commit;
+                    self.status_error = false;
+                }
                 (_, KeyCode::Char('s')) => self.mode = AppMode::Selections,
                 _ => {}
             },
             AppMode::Commit => match (key.modifiers, key.code) {
-                (_, KeyCode::Esc) => self.mode = AppMode::Normal,
+                (_, KeyCode::Esc) => {
+                    self.mode = AppMode::Normal;
+                }
                 (_, KeyCode::Enter) => {
-                    self.svn.push_basic_commit();
+                    self.status_error = !self.svn.push_basic_commit();
                     self.svn.status.clear_commit_message();
                     self.mode = AppMode::Normal;
                 }
@@ -165,7 +174,10 @@ impl App {
                 (_, KeyCode::Esc) => self.mode = AppMode::Normal,
                 (_, KeyCode::Char('q'))
                 | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
-                (_, KeyCode::Char('c')) => self.mode = AppMode::Commit,
+                (_, KeyCode::Char('c')) => {
+                    self.mode = AppMode::Commit;
+                    self.status_error = false;
+                }
                 (_, KeyCode::Up | KeyCode::Char('k')) => {
                     self.idx_selected_slist = move_cursor_up(self.idx_selected_slist);
                 }
