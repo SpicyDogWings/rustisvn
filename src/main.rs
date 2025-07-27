@@ -22,7 +22,20 @@ use std::{
 
 #[derive(Parser)]
 #[command(name = "Rustisvn")]
-#[command(about = "A TUI for svn", long_about = None)]
+#[command(
+    about = "Una TUI para proyectos con Svn",
+    long_about = "
+Rustisvn
+
+Una app minimalista y simple para usar en projectos svn.
+
+Funcionalidades disponibles como:
+- Seleccionar archivo
+- Hacer commits
+- Copiar el path del archivo
+
+Lo necesario para un flujo simple y sencillo de trabajo en la rama trunck"
+)]
 struct Args {
     #[arg(short, long, default_value = ".")]
     directory: String,
@@ -66,7 +79,7 @@ impl App {
         Self {
             running: true,
             proyect_path: path.clone(),
-            svn: svn,
+            svn,
             status_lines,
             selected: 0,
             list_selected: 0,
