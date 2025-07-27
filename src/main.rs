@@ -178,16 +178,8 @@ impl App {
                     );
                 }
                 (_, KeyCode::Char(' ')) => {
-                    let file_to_remove: Option<PathBuf> = self
-                        .status_list
-                        .selections()
-                        .iter()
-                        .filter_map(|&idx| self.status_list.entries().get(idx))
-                        .nth(self.idx_selected_slist)
-                        .map(|entry| entry.file().to_path_buf());
-                    if let Some(file) = file_to_remove {
-                        self.status_list.toggle_selection_by_file(&file);
-                    }
+                    self.status_list
+                        .toggle_selection_by_file(self.idx_selected_slist);
                 }
                 _ => {}
             },
