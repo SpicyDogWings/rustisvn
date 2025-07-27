@@ -9,7 +9,7 @@ use crate::{
         ProjectInfo, create_layout, create_section_commit, create_section_info,
         create_section_status, create_selected_items,
     },
-    svn::{SvnClient, SvnStatusList, push_basic_commit},
+    svn::SvnClient,
 };
 use clap::Parser;
 use color_eyre::Result;
@@ -22,7 +22,20 @@ use std::{
 
 #[derive(Parser)]
 #[command(name = "Rustisvn")]
-#[command(about = "A TUI for svn", long_about = None)]
+#[command(
+    about = "Una TUI para proyectos con Svn",
+    long_about = "
+Rustisvn
+
+Una app minimalista y simple para usar en projectos svn.
+
+Funcionalidades disponibles como:
+- Seleccionar archivo
+- Hacer commits
+- Copiar el path del archivo
+
+Lo necesario para un flujo simple y sencillo de trabajo en la rama trunck"
+)]
 struct Args {
     #[arg(short, long, default_value = ".")]
     directory: String,
@@ -32,8 +45,8 @@ fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     let args = Args::parse();
     let terminal = ratatui::init();
-    let proyect_path = canonicalize(&args.directory).unwrap();
-    let result = App::new(proyect_path).run(terminal);
+    let directory = canonicalize(&args.directory).unwrap();
+    let result = App::new(directory).run(terminal);
     ratatui::restore();
     result
 }
@@ -43,35 +56,31 @@ pub enum AppMode {
     #[default]
     Normal,
     Commit,
-    SelectedList,
+    Selections,
 }
 
 #[derive(Debug, Default)]
 pub struct App {
     running: bool,
-    proyect_path: PathBuf,
+    directory: PathBuf,
     svn: SvnClient,
-    status_lines: SvnStatusList,
-    selected: usize,
-    list_selected: usize,
+    idx_selected_sl: usize,
+    idx_selected_slist: usize,
     mode: AppMode,
-    commit_message: String,
 }
 
 impl App {
-    pub fn new<T: AsRef<Path>>(proyect_path: T) -> Self {
-        let path = proyect_path.as_ref().to_path_buf();
-        let svn = SvnClient::new(&path);
-        let status_lines = svn.svn_status();
+    pub fn new<T: AsRef<Path>>(directory: T) -> Self {
+        let path = directory.as_ref().to_path_buf();
+        let mut svn = SvnClient::new(&path);
+        svn.svn_status();
         Self {
             running: true,
-            proyect_path: path.clone(),
-            svn: svn,
-            status_lines,
-            selected: 0,
-            list_selected: 0,
+            directory: path.clone(),
+            svn,
+            idx_selected_sl: 0,
+            idx_selected_slist: 0,
             mode: AppMode::Normal,
-            commit_message: "".to_string(),
         }
     }
 
@@ -86,16 +95,18 @@ impl App {
 
     fn render(&mut self, frame: &mut Frame) {
         let layout = create_layout(&frame);
-        let info = ProjectInfo::new(self.proyect_path.to_string_lossy().to_string());
+        let info = ProjectInfo::new(self.directory.to_string_lossy().to_string());
         let info_section = create_section_info(&info);
-        let mut state = ListState::default().with_selected(Some(self.selected));
-        let mut state_selected_list = ListState::default().with_selected(Some(self.list_selected));
-        let status_section =
-            create_section_status(&self.status_lines, self.mode == AppMode::Normal);
+        let mut state = ListState::default().with_selected(Some(self.idx_selected_sl));
+        let mut state_selected_list =
+            ListState::default().with_selected(Some(self.idx_selected_slist));
+        let status_section = create_section_status(&self.svn.status, self.mode == AppMode::Normal);
         let selected_list =
-            create_selected_items(&self.status_lines, self.mode == AppMode::SelectedList);
-        let commit_section =
-            create_section_commit(self.mode == AppMode::Commit, &self.commit_message);
+            create_selected_items(&self.svn.status, self.mode == AppMode::Selections);
+        let commit_section = create_section_commit(
+            self.mode == AppMode::Commit,
+            &self.svn.status.commit_message(),
+        );
         frame.render_widget(info_section, layout[0]);
         frame.render_stateful_widget(status_section, layout[1], &mut state);
         frame.render_stateful_widget(selected_list, layout[2], &mut state_selected_list);
@@ -118,61 +129,54 @@ impl App {
                 (_, KeyCode::Esc | KeyCode::Char('q'))
                 | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
                 (_, KeyCode::Up | KeyCode::Char('k')) => {
-                    self.selected = move_cursor_up(self.selected);
+                    self.idx_selected_sl = move_cursor_up(self.idx_selected_sl);
                 }
                 (_, KeyCode::Down | KeyCode::Char('j')) => {
-                    self.selected =
-                        move_cursor_down(self.selected, self.status_lines.entries().len());
+                    self.idx_selected_sl =
+                        move_cursor_down(self.idx_selected_sl, self.svn.status.entries.len());
                 }
                 (_, KeyCode::Char('y')) => {
-                    let _ = copy_file(self.selected, &self.status_lines.entries())
+                    let _ = copy_file(self.idx_selected_sl, &self.svn.status.entries)
                         .expect("Error al copiar el archivo");
                 }
                 (_, KeyCode::Char(' ')) => {
-                    self.status_lines.toggle_selection(self.selected);
+                    self.svn.status.toggle_selection(self.idx_selected_sl);
                 }
                 (_, KeyCode::Char('c')) => self.mode = AppMode::Commit,
-                (_, KeyCode::Char('s')) => self.mode = AppMode::SelectedList,
+                (_, KeyCode::Char('s')) => self.mode = AppMode::Selections,
                 _ => {}
             },
             AppMode::Commit => match (key.modifiers, key.code) {
                 (_, KeyCode::Esc) => self.mode = AppMode::Normal,
                 (_, KeyCode::Enter) => {
-                    push_basic_commit(&self.svn, &mut self.status_lines, &self.commit_message);
-                    self.commit_message.clear();
+                    self.svn.push_basic_commit();
+                    self.svn.status.clear_commit_message();
                     self.mode = AppMode::Normal;
                 }
                 (_, KeyCode::Backspace) => {
-                    self.commit_message.pop();
+                    self.svn.status.pop_char_from_commit_message();
                 }
                 (_, KeyCode::Char(c)) => {
-                    self.commit_message.push(c);
+                    self.svn.status.push_char_to_commit_message(c);
                 }
                 _ => {}
             },
-            AppMode::SelectedList => match (key.modifiers, key.code) {
+            AppMode::Selections => match (key.modifiers, key.code) {
                 (_, KeyCode::Esc) => self.mode = AppMode::Normal,
                 (_, KeyCode::Char('q'))
                 | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
                 (_, KeyCode::Char('c')) => self.mode = AppMode::Commit,
                 (_, KeyCode::Up | KeyCode::Char('k')) => {
-                    self.list_selected = move_cursor_up(self.list_selected);
+                    self.idx_selected_slist = move_cursor_up(self.idx_selected_slist);
                 }
                 (_, KeyCode::Down | KeyCode::Char('j')) => {
-                    self.list_selected =
-                        move_cursor_down(self.list_selected, self.status_lines.selections().len());
+                    self.idx_selected_slist =
+                        move_cursor_down(self.idx_selected_slist, self.svn.status.selections.len());
                 }
                 (_, KeyCode::Char(' ')) => {
-                    let file_to_remove: Option<PathBuf> = self
-                        .status_lines
-                        .selections()
-                        .iter()
-                        .filter_map(|&idx| self.status_lines.entries().get(idx))
-                        .nth(self.list_selected)
-                        .map(|entry| entry.file().to_path_buf());
-                    if let Some(file) = file_to_remove {
-                        self.status_lines.toggle_selection_by_file(&file);
-                    }
+                    self.svn
+                        .status
+                        .toggle_selection_by_file(self.idx_selected_slist);
                 }
                 _ => {}
             },

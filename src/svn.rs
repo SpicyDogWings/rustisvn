@@ -6,46 +6,35 @@ use std::{
 };
 
 #[derive(Debug)]
-pub struct SvnClient {
-    working_copy: PathBuf,
+pub struct SvnStatusEntry {
+    pub file: PathBuf,
+    pub state: String,
 }
 
-#[derive(Debug)]
-pub struct StatusEntry {
-    file: PathBuf,
-    state: String,
-}
-
-impl StatusEntry {
-    pub fn file(&self) -> &PathBuf {
-        &self.file
-    }
-
-    pub fn state(&self) -> &String {
-        &self.state
+impl SvnStatusEntry {
+    pub fn new(file: PathBuf, state: String) -> Self {
+        SvnStatusEntry { file, state }
     }
 }
 
 #[derive(Debug, Default)]
 pub struct SvnStatusList {
-    entries: Vec<StatusEntry>,
-    selections: HashSet<usize>,
+    pub entries: Vec<SvnStatusEntry>,
+    pub selections: HashSet<usize>,
+    commit_message: String,
 }
 
 impl SvnStatusList {
-    pub fn new(entries: Vec<StatusEntry>, selections: HashSet<usize>) -> Self {
+    pub fn new(entries: Vec<SvnStatusEntry>, selections: HashSet<usize>) -> Self {
         SvnStatusList {
             entries,
             selections,
+            commit_message: String::new(),
         }
     }
 
-    pub fn entries(&self) -> &Vec<StatusEntry> {
-        &self.entries
-    }
-
-    pub fn selections(&self) -> &HashSet<usize> {
-        &self.selections
+    pub fn commit_message(&self) -> &str {
+        &self.commit_message
     }
 
     pub fn toggle_selection(&mut self, idx: usize) {
@@ -56,17 +45,44 @@ impl SvnStatusList {
         }
     }
 
-    pub fn toggle_selection_by_file(&mut self, file: &PathBuf) {
-        if let Some(idx) = self.entries().iter().position(|entry| entry.file() == file) {
-            self.selections.remove(&idx);
+    pub fn toggle_selection_by_file(&mut self, idx_selected: usize) {
+        let file_to_remove = self
+            .selections
+            .iter()
+            .filter_map(|&idx| self.entries.get(idx))
+            .nth(idx_selected)
+            .map(|entry| entry.file.to_path_buf());
+        if let Some(file) = file_to_remove {
+            if let Some(idx) = self.entries.iter().position(|entry| entry.file == file) {
+                self.selections.remove(&idx);
+            }
         }
     }
+
+    pub fn clear_commit_message(&mut self) {
+        self.commit_message.clear();
+    }
+
+    pub fn push_char_to_commit_message(&mut self, c: char) {
+        self.commit_message.push(c);
+    }
+
+    pub fn pop_char_from_commit_message(&mut self) {
+        self.commit_message.pop();
+    }
+}
+
+#[derive(Debug)]
+pub struct SvnClient {
+    working_copy: PathBuf,
+    pub status: SvnStatusList,
 }
 
 impl SvnClient {
     pub fn new<T: AsRef<Path>>(working_copy: T) -> Self {
         SvnClient {
             working_copy: working_copy.as_ref().to_path_buf(),
+            status: SvnStatusList::new(Vec::new(), HashSet::new()),
         }
     }
 
@@ -84,7 +100,7 @@ impl SvnClient {
         }
     }
 
-    pub fn svn_status(&self) -> SvnStatusList {
+    pub fn svn_status(&mut self) {
         let out = self.raw_command(&["status"]);
         let entries = out
             .lines()
@@ -92,10 +108,27 @@ impl SvnClient {
                 let mut parts = line.splitn(2, char::is_whitespace);
                 let state = parts.next()?.to_string();
                 let file = PathBuf::from(parts.next()?.to_string().trim());
-                Some(StatusEntry { state, file })
+                Some(SvnStatusEntry::new(file, state))
             })
             .collect();
-        SvnStatusList::new(entries, HashSet::new())
+        self.status = SvnStatusList::new(entries, HashSet::new());
+    }
+
+    pub fn push_basic_commit(&mut self) {
+        let mut args = vec!["commit", "-m", self.status.commit_message()];
+        let file_args: Vec<&str> = self
+            .status
+            .selections
+            .iter()
+            .filter_map(|&idx| self.status.entries.get(idx))
+            .filter_map(|entry| entry.file.to_str())
+            .collect();
+        if file_args.is_empty() {
+            return;
+        };
+        args.extend(file_args);
+        self.raw_command(&args);
+        self.svn_status();
     }
 }
 
@@ -119,24 +152,4 @@ pub fn style_for_status(state: &str) -> Style {
         "~" => Style::new().fg(Color::LightMagenta), // Obstructed
         _ => Style::new(),                           // Default
     }
-}
-
-pub fn push_basic_commit(
-    svn_client: &SvnClient,
-    status_lines: &mut SvnStatusList,
-    commit_message: &str,
-) {
-    let mut args = vec!["commit", "-m", commit_message];
-    let file_args: Vec<&str> = status_lines
-        .selections()
-        .iter()
-        .filter_map(|&idx| status_lines.entries().get(idx))
-        .filter_map(|entry| entry.file().to_str())
-        .collect();
-    if file_args.is_empty() {
-        return;
-    };
-    args.extend(file_args);
-    svn_client.raw_command(&args);
-    *status_lines = svn_client.svn_status();
 }
