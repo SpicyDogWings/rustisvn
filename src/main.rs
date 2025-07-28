@@ -6,7 +6,7 @@ use crate::{
     cursor::{move_cursor_down, move_cursor_up},
     files::copy_file,
     renders::{
-        ProjectInfo, create_layout, create_section_commit, create_section_info,
+        BlockRenderStatus, ProjectInfo, create_layout, create_section_commit, create_section_info,
         create_section_status, create_selected_items,
     },
     svn::SvnClient,
@@ -64,6 +64,7 @@ pub struct App {
     running: bool,
     directory: PathBuf,
     svn: SvnClient,
+    block_status: Vec<BlockRenderStatus>,
     idx_selected_sl: usize,
     idx_selected_slist: usize,
     status_error: bool,
@@ -75,10 +76,12 @@ impl App {
         let path = directory.as_ref().to_path_buf();
         let mut svn = SvnClient::new(&path);
         svn.svn_status();
+        let block_status = vec![BlockRenderStatus::new(); 3];
         Self {
             running: true,
             directory: path.clone(),
             svn,
+            block_status,
             idx_selected_sl: 0,
             idx_selected_slist: 0,
             status_error: false,

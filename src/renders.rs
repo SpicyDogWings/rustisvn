@@ -29,9 +29,19 @@ pub fn create_layout(frame: &Frame) -> Vec<Rect> {
     ]
 }
 
+#[derive(Debug, Clone)]
 pub struct BlockRenderStatus {
     idx_selected: usize,
     error: bool,
+}
+
+impl BlockRenderStatus {
+    pub fn new() -> Self {
+        BlockRenderStatus {
+            idx_selected: 0,
+            error: false,
+        }
+    }
 }
 
 pub struct ProjectInfo {
