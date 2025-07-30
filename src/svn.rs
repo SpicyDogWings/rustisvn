@@ -160,8 +160,30 @@ impl SvnClient {
             .collect();
         args.extend(file_args);
         self.raw_command(&args);
-        self.svn_status();
+        self.refresh_svn_status();
         true
+    }
+
+    pub fn add_to_svn(&mut self, idx: usize) {
+        let mut args = vec!["add"];
+        if let Some(entry) = self.status.entries.get(idx) {
+            if let Some(file) = entry.file.to_str() {
+                args.push(file);
+            }
+        }
+        self.raw_command(&args);
+        self.refresh_svn_status();
+    }
+
+    pub fn revert_to_svn(&mut self, idx: usize) {
+        let mut args = vec!["revert"];
+        if let Some(entry) = self.status.entries.get(idx) {
+            if let Some(file) = entry.file.to_str() {
+                args.push(file);
+            }
+        }
+        self.raw_command(&args);
+        self.refresh_svn_status();
     }
 }
 
