@@ -146,6 +146,12 @@ impl App {
                 (_, KeyCode::Char('u')) => {
                     self.svn.refresh_svn_status();
                 }
+                (_, KeyCode::Char('a')) => {
+                    self.svn.add_to_svn(self.block_status[0].idx_selected);
+                }
+                (_, KeyCode::Char('r')) => {
+                    self.svn.revert_to_svn(self.block_status[0].idx_selected);
+                }
                 (_, KeyCode::Char(' ')) => {
                     self.svn
                         .status
@@ -197,9 +203,6 @@ impl App {
                     self.svn
                         .status
                         .toggle_selection_by_file(self.block_status[1].idx_selected);
-                }
-                (_, KeyCode::Char('u')) => {
-                    self.svn.refresh_svn_status();
                 }
                 _ => {}
             },
