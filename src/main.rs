@@ -72,7 +72,7 @@ impl App {
     pub fn new<T: AsRef<Path>>(directory: T) -> Self {
         let path = directory.as_ref().to_path_buf();
         let mut svn = SvnClient::new(&path);
-        svn.svn_status();
+        svn.init_svn_status();
         let block_status = vec![BlockRenderStatus::new(); 3];
         Self {
             running: true,
@@ -143,6 +143,9 @@ impl App {
                     let _ = copy_file(self.block_status[0].idx_selected, &self.svn.status.entries)
                         .expect("Error al copiar el archivo");
                 }
+                (_, KeyCode::Char('r')) => {
+                    self.svn.refresh_svn_status();
+                }
                 (_, KeyCode::Char(' ')) => {
                     self.svn
                         .status
@@ -194,6 +197,9 @@ impl App {
                     self.svn
                         .status
                         .toggle_selection_by_file(self.block_status[1].idx_selected);
+                }
+                (_, KeyCode::Char('r')) => {
+                    self.svn.refresh_svn_status();
                 }
                 _ => {}
             },
