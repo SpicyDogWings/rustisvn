@@ -160,7 +160,7 @@ impl SvnClient {
             .collect();
         args.extend(file_args);
         self.raw_command(&args);
-        self.svn_status();
+        self.refresh_svn_status();
         true
     }
 }
