@@ -13,7 +13,7 @@ pub fn create_layout(frame: &Frame) -> Vec<Rect> {
         .direction(Direction::Vertical)
         .constraints(vec![
             Constraint::Length(3),
-            Constraint::Fill(5),
+            Constraint::Min(10),
             Constraint::Min(7),
         ])
         .split(frame.area());
@@ -31,8 +31,8 @@ pub fn create_layout(frame: &Frame) -> Vec<Rect> {
 
 #[derive(Debug, Clone)]
 pub struct BlockRenderStatus {
-    idx_selected: usize,
-    error: bool,
+    pub idx_selected: usize,
+    pub error: bool,
 }
 
 impl BlockRenderStatus {

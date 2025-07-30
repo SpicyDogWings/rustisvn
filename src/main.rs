@@ -65,9 +65,6 @@ pub struct App {
     directory: PathBuf,
     svn: SvnClient,
     block_status: Vec<BlockRenderStatus>,
-    idx_selected_sl: usize,
-    idx_selected_slist: usize,
-    status_error: bool,
     mode: AppMode,
 }
 
@@ -82,9 +79,6 @@ impl App {
             directory: path.clone(),
             svn,
             block_status,
-            idx_selected_sl: 0,
-            idx_selected_slist: 0,
-            status_error: false,
             mode: AppMode::Normal,
         }
     }
@@ -102,16 +96,16 @@ impl App {
         let layout = create_layout(&frame);
         let info = ProjectInfo::new(self.directory.to_string_lossy().to_string());
         let info_section = create_section_info(&info);
-        let mut state = ListState::default().with_selected(Some(self.idx_selected_sl));
+        let mut state = ListState::default().with_selected(Some(self.block_status[0].idx_selected));
         let mut state_selected_list =
-            ListState::default().with_selected(Some(self.idx_selected_slist));
+            ListState::default().with_selected(Some(self.block_status[1].idx_selected));
         let status_section =
             create_section_status(&self.svn.status, false, self.mode == AppMode::Normal);
         let selected_list =
             create_selected_items(&self.svn.status, false, self.mode == AppMode::Selections);
         let commit_section = create_section_commit(
             &self.svn.status.commit_message(),
-            self.status_error,
+            self.block_status[2].error,
             self.mode == AppMode::Commit,
         );
         frame.render_widget(info_section, layout[0]);
@@ -136,22 +130,27 @@ impl App {
                 (_, KeyCode::Esc | KeyCode::Char('q'))
                 | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
                 (_, KeyCode::Up | KeyCode::Char('k')) => {
-                    self.idx_selected_sl = move_cursor_up(self.idx_selected_sl);
+                    self.block_status[0].idx_selected =
+                        move_cursor_up(self.block_status[0].idx_selected);
                 }
                 (_, KeyCode::Down | KeyCode::Char('j')) => {
-                    self.idx_selected_sl =
-                        move_cursor_down(self.idx_selected_sl, self.svn.status.entries.len());
+                    self.block_status[0].idx_selected = move_cursor_down(
+                        self.block_status[0].idx_selected,
+                        self.svn.status.entries.len(),
+                    );
                 }
                 (_, KeyCode::Char('y')) => {
-                    let _ = copy_file(self.idx_selected_sl, &self.svn.status.entries)
+                    let _ = copy_file(self.block_status[0].idx_selected, &self.svn.status.entries)
                         .expect("Error al copiar el archivo");
                 }
                 (_, KeyCode::Char(' ')) => {
-                    self.svn.status.toggle_selection(self.idx_selected_sl);
+                    self.svn
+                        .status
+                        .toggle_selection(self.block_status[0].idx_selected);
                 }
                 (_, KeyCode::Char('c')) => {
                     self.mode = AppMode::Commit;
-                    self.status_error = false;
+                    self.block_status[2].error = false;
                 }
                 (_, KeyCode::Char('s')) => self.mode = AppMode::Selections,
                 _ => {}
@@ -161,7 +160,7 @@ impl App {
                     self.mode = AppMode::Normal;
                 }
                 (_, KeyCode::Enter) => {
-                    self.status_error = !self.svn.push_basic_commit();
+                    self.block_status[2].error = !self.svn.push_basic_commit();
                     self.svn.status.clear_commit_message();
                     self.mode = AppMode::Normal;
                 }
@@ -179,19 +178,22 @@ impl App {
                 | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
                 (_, KeyCode::Char('c')) => {
                     self.mode = AppMode::Commit;
-                    self.status_error = false;
+                    self.block_status[2].error = false;
                 }
                 (_, KeyCode::Up | KeyCode::Char('k')) => {
-                    self.idx_selected_slist = move_cursor_up(self.idx_selected_slist);
+                    self.block_status[1].idx_selected =
+                        move_cursor_up(self.block_status[1].idx_selected);
                 }
                 (_, KeyCode::Down | KeyCode::Char('j')) => {
-                    self.idx_selected_slist =
-                        move_cursor_down(self.idx_selected_slist, self.svn.status.selections.len());
+                    self.block_status[1].idx_selected = move_cursor_down(
+                        self.block_status[1].idx_selected,
+                        self.svn.status.selections.len(),
+                    );
                 }
                 (_, KeyCode::Char(' ')) => {
                     self.svn
                         .status
-                        .toggle_selection_by_file(self.idx_selected_slist);
+                        .toggle_selection_by_file(self.block_status[1].idx_selected);
                 }
                 _ => {}
             },
