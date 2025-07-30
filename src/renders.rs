@@ -1,4 +1,4 @@
-use crate::svn::{SvnStatusList, style_for_status};
+use crate::svn::{SvnStatusEntry, SvnStatusList, style_for_status};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -88,10 +88,14 @@ pub fn create_section_status(list: &SvnStatusList, is_error: bool, is_focused: b
 }
 
 pub fn create_selected_items(list: &SvnStatusList, is_error: bool, is_focused: bool) -> List {
-    let selected_items: Vec<ListItem> = list
+    let mut selected_entries: Vec<&SvnStatusEntry> = list
         .selections
         .iter()
         .filter_map(|&idx| list.entries.get(idx))
+        .collect();
+    selected_entries.sort_by(|a, b| a.file.cmp(&b.file));
+    let selected_items: Vec<ListItem> = selected_entries
+        .into_iter()
         .map(|entry| {
             let style = style_for_status(&entry.state);
             let line = Line::from(vec![

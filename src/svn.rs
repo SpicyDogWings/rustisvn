@@ -1,11 +1,12 @@
 use ratatui::style::{Color, Style};
 use std::collections::HashSet;
+use std::hash::Hash;
 use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct SvnStatusEntry {
     pub file: PathBuf,
     pub state: String,
@@ -70,6 +71,10 @@ impl SvnStatusList {
     pub fn pop_char_from_commit_message(&mut self) {
         self.commit_message.pop();
     }
+
+    pub fn set_commit_message(&mut self, message: String) {
+        self.commit_message = message;
+    }
 }
 
 #[derive(Debug)]
@@ -100,9 +105,9 @@ impl SvnClient {
         }
     }
 
-    pub fn svn_status(&mut self) {
+    pub fn svn_status(&self) -> Vec<SvnStatusEntry> {
         let out = self.raw_command(&["status"]);
-        let entries = out
+        let mut entries: Vec<SvnStatusEntry> = out
             .lines()
             .filter_map(|line| {
                 let mut parts = line.splitn(2, char::is_whitespace);
@@ -111,7 +116,34 @@ impl SvnClient {
                 Some(SvnStatusEntry::new(file, state))
             })
             .collect();
+        entries.sort_by(|a, b| a.file.cmp(&b.file));
+        entries
+    }
+
+    pub fn init_svn_status(&mut self) {
+        let entries = self.svn_status();
         self.status = SvnStatusList::new(entries, HashSet::new());
+    }
+
+    pub fn refresh_svn_status(&mut self) {
+        let new_entries = self.svn_status();
+        let previously_selected_files: HashSet<PathBuf> = self
+            .status
+            .selections
+            .iter()
+            .filter_map(|&idx| self.status.entries.get(idx))
+            .filter_map(|entry| entry.file.to_str())
+            .map(PathBuf::from)
+            .collect();
+        let mut new_selections = HashSet::new();
+        for (new_idx, entry) in new_entries.iter().enumerate() {
+            if previously_selected_files.contains(&entry.file) {
+                new_selections.insert(new_idx);
+            }
+        }
+        let current_commit_message = self.status.commit_message.clone();
+        self.status = SvnStatusList::new(new_entries, new_selections);
+        self.status.set_commit_message(current_commit_message);
     }
 
     pub fn push_basic_commit(&mut self) -> bool {
