@@ -24,6 +24,17 @@ cp rsvn ~/.local/bin
 rsvn
 ```
 
+### Código fuente
+
+Puedes clonar el repositorio y compilarlo manualmente:
+
+```
+git clone git@github.com:SpicyDogWings/rustisvn.git
+cd rustisvn
+cargo build --release
+cp target/release/rsvn ~/.local/bin
+```
+
 ## Tips
 
 Puedes ejecutar el siguiente comando para la ayuda del comando
@@ -50,15 +61,15 @@ El programa opera en diferentes por modos(nvim user :p):
 |               |          `y`          | Copia la ruta (path) del archivo. |
 |               | `k` / `FLECHA ARRIBA` | Sube el cursor.                   |
 |               | `j` / `FLECHA ABAJO`  | Baja el cursor.                   |
-|               |      `q` / `ESC`      | Salir de la aplicación.            |
-| **Selección** |          `s`          | Entra al modo selección.       |
+|               |      `q` / `ESC`      | Salir de la aplicación.           |
+| **Selección** |          `s`          | Entra al modo selección.          |
 |               |       `ESPACIO`       | Alterna un archivo para commit.   |
 |               | `k` / `FLECHA ARRIBA` | Sube el cursor.                   |
 |               | `j` / `FLECHA ABAJO`  | Baja el cursor.                   |
-|               |         `ESC`         | Sale del modo selección.       |
-|  **Commit**   |          `c`          | Entra al modo commit.          |
+|               |         `ESC`         | Sale del modo selección.          |
+|  **Commit**   |          `c`          | Entra al modo commit.             |
 |               |        `ENTER`        | Realiza el commit.                |
-|               |         `ESC`         | Sale del modo commit.       |
+|               |         `ESC`         | Sale del modo commit.             |
 
 ## Stack
 
