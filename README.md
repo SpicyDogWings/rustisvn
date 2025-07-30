@@ -59,11 +59,13 @@ El programa opera en diferentes por modos(nvim user :p):
 |  **Normal**   |                       |                                   |
 |               |       `ESPACIO`       | Alterna un archivo para commit.   |
 |               |          `y`          | Copia la ruta (path) del archivo. |
+|               |          `u`          | Actualiza el estado de svn.       |
 |               | `k` / `FLECHA ARRIBA` | Sube el cursor.                   |
 |               | `j` / `FLECHA ABAJO`  | Baja el cursor.                   |
 |               |      `q` / `ESC`      | Salir de la aplicación.           |
 | **Selección** |          `s`          | Entra al modo selección.          |
 |               |       `ESPACIO`       | Alterna un archivo para commit.   |
+|               |          `u`          | Actualiza el estado de svn.       |
 |               | `k` / `FLECHA ARRIBA` | Sube el cursor.                   |
 |               | `j` / `FLECHA ABAJO`  | Baja el cursor.                   |
 |               |         `ESC`         | Sale del modo selección.          |

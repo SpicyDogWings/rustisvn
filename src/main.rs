@@ -143,7 +143,7 @@ impl App {
                     let _ = copy_file(self.block_status[0].idx_selected, &self.svn.status.entries)
                         .expect("Error al copiar el archivo");
                 }
-                (_, KeyCode::Char('r')) => {
+                (_, KeyCode::Char('u')) => {
                     self.svn.refresh_svn_status();
                 }
                 (_, KeyCode::Char(' ')) => {
@@ -198,7 +198,7 @@ impl App {
                         .status
                         .toggle_selection_by_file(self.block_status[1].idx_selected);
                 }
-                (_, KeyCode::Char('r')) => {
+                (_, KeyCode::Char('u')) => {
                     self.svn.refresh_svn_status();
                 }
                 _ => {}
