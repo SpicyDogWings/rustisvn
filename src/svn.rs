@@ -116,6 +116,9 @@ impl SvnClient {
 
     pub fn push_basic_commit(&mut self) -> bool {
         let mut args = vec!["commit", "-m", self.status.commit_message()];
+        if self.status.selections.is_empty() {
+            return false;
+        }
         let file_args: Vec<&str> = self
             .status
             .selections
@@ -123,9 +126,6 @@ impl SvnClient {
             .filter_map(|&idx| self.status.entries.get(idx))
             .filter_map(|entry| entry.file.to_str())
             .collect();
-        if file_args.is_empty() {
-            return false;
-        };
         args.extend(file_args);
         self.raw_command(&args);
         self.svn_status();

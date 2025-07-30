@@ -13,7 +13,7 @@ pub fn create_layout(frame: &Frame) -> Vec<Rect> {
         .direction(Direction::Vertical)
         .constraints(vec![
             Constraint::Length(3),
-            Constraint::Fill(5),
+            Constraint::Min(10),
             Constraint::Min(7),
         ])
         .split(frame.area());
@@ -27,6 +27,21 @@ pub fn create_layout(frame: &Frame) -> Vec<Rect> {
         horizontal_chunks[0],
         horizontal_chunks[1],
     ]
+}
+
+#[derive(Debug, Clone)]
+pub struct BlockRenderStatus {
+    pub idx_selected: usize,
+    pub error: bool,
+}
+
+impl BlockRenderStatus {
+    pub fn new() -> Self {
+        BlockRenderStatus {
+            idx_selected: 0,
+            error: false,
+        }
+    }
 }
 
 pub struct ProjectInfo {
