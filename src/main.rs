@@ -7,7 +7,7 @@ use crate::{
     files::copy_file,
     renders::{
         BlockRenderStatus, ProjectInfo, create_layout, create_section_commit, create_section_info,
-        create_section_status, create_selected_items,
+        create_section_status, create_selected_items, render_confirm_modal,
     },
     svn::SvnClient,
 };
@@ -52,11 +52,18 @@ fn main() -> color_eyre::Result<()> {
 }
 
 #[derive(Debug, Default, PartialEq)]
+pub enum ConfirmMode {
+    #[default]
+    Revert,
+}
+
+#[derive(Debug, Default, PartialEq)]
 pub enum AppMode {
     #[default]
     Normal,
     Commit,
     Selections,
+    Confirm(ConfirmMode),
 }
 
 #[derive(Debug, Default)]
@@ -112,6 +119,16 @@ impl App {
         frame.render_stateful_widget(status_section, layout[1], &mut state);
         frame.render_stateful_widget(selected_list, layout[2], &mut state_selected_list);
         frame.render_widget(commit_section, layout[3]);
+
+        if let AppMode::Confirm(confirm_type) = &self.mode {
+            let (title, message) = match confirm_type {
+                ConfirmMode::Revert => (
+                    " Confirmar Revertir ",
+                    "¿Estás seguro de que quieres revertir los cambios?",
+                ),
+            };
+            render_confirm_modal(frame, title, message);
+        }
     }
 
     fn handle_crossterm_events(&mut self) -> Result<()> {
@@ -125,7 +142,7 @@ impl App {
     }
 
     fn on_key_event(&mut self, key: KeyEvent) {
-        match self.mode {
+        match &self.mode {
             AppMode::Normal => match (key.modifiers, key.code) {
                 (_, KeyCode::Esc | KeyCode::Char('q'))
                 | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
@@ -150,7 +167,7 @@ impl App {
                     self.svn.add_to_svn(self.block_status[0].idx_selected);
                 }
                 (_, KeyCode::Char('r')) => {
-                    self.svn.revert_to_svn(self.block_status[0].idx_selected);
+                    self.mode = AppMode::Confirm(ConfirmMode::Revert);
                 }
                 (_, KeyCode::Char(' ')) => {
                     self.svn
@@ -203,6 +220,20 @@ impl App {
                     self.svn
                         .status
                         .toggle_selection_by_file(self.block_status[1].idx_selected);
+                }
+                _ => {}
+            },
+            AppMode::Confirm(action_type) => match (key.modifiers, key.code) {
+                (_, KeyCode::Esc | KeyCode::Backspace | KeyCode::Char('n')) => {
+                    self.mode = AppMode::Normal;
+                }
+                (_, KeyCode::Char('y')) => {
+                    match action_type {
+                        ConfirmMode::Revert => {
+                            self.svn.revert_to_svn(self.block_status[0].idx_selected);
+                        }
+                    }
+                    self.mode = AppMode::Normal;
                 }
                 _ => {}
             },

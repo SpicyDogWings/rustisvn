@@ -5,7 +5,7 @@ use ratatui::{
     prelude::*,
     style::{Color, Style},
     text::{Line, Text},
-    widgets::{Block, BorderType, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, BorderType, Clear, List, ListItem, Paragraph, Wrap},
 };
 
 pub fn create_layout(frame: &Frame) -> Vec<Rect> {
@@ -161,4 +161,64 @@ pub fn set_status_block(block: Block, is_error: bool, is_focused: bool) -> Block
     } else {
         block.border_style(Style::new().gray())
     }
+}
+
+pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let min_width = 40;
+    let min_height = 8;
+    let actual_percent_x = percent_x.max((min_width * 100 / r.width).min(100));
+    let actual_percent_y = percent_y.max((min_height * 100 / r.height).min(100));
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - actual_percent_y) / 2),
+            Constraint::Percentage(actual_percent_y),
+            Constraint::Percentage((100 - actual_percent_y) / 2),
+        ])
+        .split(r);
+    let middle_vertical_area = if popup_layout.len() >= 3 {
+        popup_layout[1]
+    } else {
+        Rect::new(r.x, r.y, r.width.max(min_width), r.height.max(min_height))
+    };
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - actual_percent_x) / 2),
+            Constraint::Percentage(actual_percent_x),
+            Constraint::Percentage((100 - actual_percent_x) / 2),
+        ])
+        .split(middle_vertical_area)[1]
+}
+
+pub fn render_confirm_modal(frame: &mut Frame, title: &str, message: &str) {
+    let area = centered_rect(60, 20, frame.area());
+    frame.render_widget(Clear, area);
+    let outer_block = Block::bordered()
+        .title(title)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::new().blue())
+        .title_alignment(Alignment::Center);
+    let inner_area = outer_block.inner(area);
+    frame.render_widget(outer_block, area);
+    let modal_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(3), Constraint::Min(1)])
+        .split(inner_area);
+    let message_paraghap = Paragraph::new(message)
+        .style(Style::default().fg(Color::White))
+        .alignment(Alignment::Center);
+    frame.render_widget(message_paraghap, modal_layout[0]);
+    let option_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(3), Constraint::Min(1)])
+        .split(modal_layout[1]);
+    let yes_text = Paragraph::new("Yes (y)")
+        .style(Style::default().fg(Color::Blue))
+        .alignment(Alignment::Center);
+    frame.render_widget(yes_text, option_layout[0]);
+    let no_text = Paragraph::new("No (n)")
+        .style(Style::default().fg(Color::Red))
+        .alignment(Alignment::Center);
+    frame.render_widget(no_text, option_layout[1]);
 }

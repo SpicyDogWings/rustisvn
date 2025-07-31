@@ -100,7 +100,7 @@ impl SvnClient {
             .output();
 
         match out {
-            Ok(o) => String::from_utf8_lossy(&o.stdout).into_owned(), // acá se ve el mensaje de notting to update i think
+            Ok(o) => String::from_utf8_lossy(&o.stdout).into_owned(),
             Err(_) => String::new(),
         }
     }
