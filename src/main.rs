@@ -6,8 +6,9 @@ use crate::{
     cursor::{move_cursor_down, move_cursor_up},
     files::copy_file,
     renders::{
-        BlockRenderStatus, ProjectInfo, create_layout, create_section_commit, create_section_info,
-        create_section_status, create_selected_items,
+        BlockRenderStatus, ModalInfo, ModalType, ProjectInfo, create_layout, create_section_commit,
+        create_section_info, create_section_status, create_selected_items, render_confirm_modal,
+        render_modal,
     },
     svn::SvnClient,
 };
@@ -52,11 +53,19 @@ fn main() -> color_eyre::Result<()> {
 }
 
 #[derive(Debug, Default, PartialEq)]
+pub enum ConfirmMode {
+    #[default]
+    Revert,
+}
+
+#[derive(Debug, Default, PartialEq)]
 pub enum AppMode {
     #[default]
     Normal,
     Commit,
     Selections,
+    Confirm(ConfirmMode),
+    Modal(ModalType),
 }
 
 #[derive(Debug, Default)]
@@ -66,6 +75,7 @@ pub struct App {
     svn: SvnClient,
     block_status: Vec<BlockRenderStatus>,
     mode: AppMode,
+    modal: ModalInfo,
 }
 
 impl App {
@@ -74,12 +84,14 @@ impl App {
         let mut svn = SvnClient::new(&path);
         svn.init_svn_status();
         let block_status = vec![BlockRenderStatus::new(); 3];
+        let modal = ModalInfo::new();
         Self {
             running: true,
             directory: path.clone(),
             svn,
             block_status,
             mode: AppMode::Normal,
+            modal,
         }
     }
 
@@ -112,6 +124,24 @@ impl App {
         frame.render_stateful_widget(status_section, layout[1], &mut state);
         frame.render_stateful_widget(selected_list, layout[2], &mut state_selected_list);
         frame.render_widget(commit_section, layout[3]);
+
+        if let AppMode::Confirm(confirm_type) = &self.mode {
+            let (title, message) = match confirm_type {
+                ConfirmMode::Revert => (
+                    " Confirmar Revertir ",
+                    "¿Estás seguro de que quieres revertir los cambios?",
+                ),
+            };
+            render_confirm_modal(frame, title, message);
+        }
+        if let AppMode::Modal(modal_type) = &self.mode {
+            render_modal(
+                frame,
+                &self.modal.title,
+                &self.modal.message,
+                modal_type.clone(),
+            );
+        }
     }
 
     fn handle_crossterm_events(&mut self) -> Result<()> {
@@ -125,7 +155,7 @@ impl App {
     }
 
     fn on_key_event(&mut self, key: KeyEvent) {
-        match self.mode {
+        match &self.mode {
             AppMode::Normal => match (key.modifiers, key.code) {
                 (_, KeyCode::Esc | KeyCode::Char('q'))
                 | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
@@ -150,7 +180,7 @@ impl App {
                     self.svn.add_to_svn(self.block_status[0].idx_selected);
                 }
                 (_, KeyCode::Char('r')) => {
-                    self.svn.revert_to_svn(self.block_status[0].idx_selected);
+                    self.mode = AppMode::Confirm(ConfirmMode::Revert);
                 }
                 (_, KeyCode::Char(' ')) => {
                     self.svn
@@ -169,9 +199,20 @@ impl App {
                     self.mode = AppMode::Normal;
                 }
                 (_, KeyCode::Enter) => {
-                    self.block_status[2].error = !self.svn.push_basic_commit();
+                    match self.svn.push_basic_commit() {
+                        Ok(_) => {
+                            self.block_status[2].error = false;
+                            self.svn.status.clear_commit_message();
+                            self.mode = AppMode::Normal;
+                        }
+                        Err(error_message) => {
+                            self.block_status[2].error = true;
+                            self.modal.title = " Error de Commit ".to_string();
+                            self.modal.message = error_message;
+                            self.mode = AppMode::Modal(ModalType::Error);
+                        }
+                    }
                     self.svn.status.clear_commit_message();
-                    self.mode = AppMode::Normal;
                 }
                 (_, KeyCode::Backspace) => {
                     self.svn.status.pop_char_from_commit_message();
@@ -203,6 +244,26 @@ impl App {
                     self.svn
                         .status
                         .toggle_selection_by_file(self.block_status[1].idx_selected);
+                }
+                _ => {}
+            },
+            AppMode::Confirm(action_type) => match (key.modifiers, key.code) {
+                (_, KeyCode::Esc | KeyCode::Backspace | KeyCode::Char('n')) => {
+                    self.mode = AppMode::Normal;
+                }
+                (_, KeyCode::Char('y')) => {
+                    match action_type {
+                        ConfirmMode::Revert => {
+                            self.svn.revert_to_svn(self.block_status[0].idx_selected);
+                        }
+                    }
+                    self.mode = AppMode::Normal;
+                }
+                _ => {}
+            },
+            AppMode::Modal(_) => match (key.modifiers, key.code) {
+                (_, KeyCode::Enter | KeyCode::Esc) => {
+                    self.mode = AppMode::Normal;
                 }
                 _ => {}
             },

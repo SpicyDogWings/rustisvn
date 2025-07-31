@@ -91,33 +91,48 @@ impl SvnClient {
         }
     }
 
-    pub fn raw_command(&self, args: &[&str]) -> String {
+    pub fn raw_command(&self, args: &[&str]) -> Result<String, String> {
         let out = Command::new("svn")
             .args(args)
             .current_dir(&self.working_copy)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output();
-
         match out {
-            Ok(o) => String::from_utf8_lossy(&o.stdout).into_owned(), // acá se ve el mensaje de notting to update i think
-            Err(_) => String::new(),
+            Ok(o) => {
+                if o.status.success() {
+                    Ok(String::from_utf8_lossy(&o.stdout).into_owned())
+                } else {
+                    Err(String::from_utf8_lossy(&o.stdout).into_owned())
+                }
+            }
+            Err(e) => Err(format!("Fallo al ejecutar el comando SVN: {}", e)),
         }
     }
 
     pub fn svn_status(&self) -> Vec<SvnStatusEntry> {
-        let out = self.raw_command(&["status"]);
-        let mut entries: Vec<SvnStatusEntry> = out
-            .lines()
-            .filter_map(|line| {
-                let mut parts = line.splitn(2, char::is_whitespace);
-                let state = parts.next()?.to_string();
-                let file = PathBuf::from(parts.next()?.to_string().trim());
-                Some(SvnStatusEntry::new(file, state))
-            })
-            .collect();
-        entries.sort_by(|a, b| a.file.cmp(&b.file));
-        entries
+        let out_result = self.raw_command(&["status"]);
+        match out_result {
+            Ok(out_string) => {
+                let mut entries: Vec<SvnStatusEntry> = out_string
+                    .lines()
+                    .filter_map(|line| {
+                        let mut parts =
+                            line.splitn(2, |c: char| c.is_whitespace() && c != '\n' && c != '\r'); // Use a more robust split
+                        let state = parts.next()?.to_string();
+                        let file_str = parts.next()?.trim(); // Trim whitespace from the file path
+                        let file = PathBuf::from(file_str);
+                        Some(SvnStatusEntry::new(file, state))
+                    })
+                    .collect();
+                entries.sort_by(|a, b| a.file.cmp(&b.file));
+                entries
+            }
+            Err(e) => {
+                eprintln!("Error al obtener el estado de SVN: {}", e);
+                Vec::new()
+            }
+        }
     }
 
     pub fn init_svn_status(&mut self) {
@@ -146,10 +161,13 @@ impl SvnClient {
         self.status.set_commit_message(current_commit_message);
     }
 
-    pub fn push_basic_commit(&mut self) -> bool {
+    pub fn push_basic_commit(&mut self) -> Result<bool, String> {
         let mut args = vec!["commit", "-m", self.status.commit_message()];
+        if self.status.commit_message().trim().is_empty() {
+            return Err("El mensaje de commit no puede estar vacío.".to_string());
+        }
         if self.status.selections.is_empty() {
-            return false;
+            return Err("No se han seleccionado archivos para el commit.".to_string());
         }
         let file_args: Vec<&str> = self
             .status
@@ -159,9 +177,12 @@ impl SvnClient {
             .filter_map(|entry| entry.file.to_str())
             .collect();
         args.extend(file_args);
-        self.raw_command(&args);
+        let command_result = self.raw_command(&args);
         self.refresh_svn_status();
-        true
+        match command_result {
+            Ok(_) => Ok(true),
+            Err(e) => Err(format!("Error en el commit: {}", e)),
+        }
     }
 
     pub fn add_to_svn(&mut self, idx: usize) {
@@ -171,7 +192,7 @@ impl SvnClient {
                 args.push(file);
             }
         }
-        self.raw_command(&args);
+        let _ = self.raw_command(&args);
         self.refresh_svn_status();
     }
 
@@ -182,7 +203,7 @@ impl SvnClient {
                 args.push(file);
             }
         }
-        self.raw_command(&args);
+        let _ = self.raw_command(&args);
         self.refresh_svn_status();
     }
 }
