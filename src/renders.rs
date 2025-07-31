@@ -54,6 +54,30 @@ impl ProjectInfo {
     }
 }
 
+#[derive(Debug, Default, PartialEq)]
+pub struct ModalInfo {
+    pub title: String,
+    pub message: String,
+}
+
+impl ModalInfo {
+    pub fn new() -> Self {
+        ModalInfo {
+            title: "Void".to_string(),
+            message: "".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Clone)]
+pub enum ModalType {
+    #[default]
+    Info,
+    Warning,
+    Error,
+    None,
+}
+
 pub fn create_section_info(info: &ProjectInfo) -> Paragraph {
     Paragraph::new(Text::styled(
         info.path.to_string(),
@@ -221,4 +245,29 @@ pub fn render_confirm_modal(frame: &mut Frame, title: &str, message: &str) {
         .style(Style::default().fg(Color::Red))
         .alignment(Alignment::Center);
     frame.render_widget(no_text, option_layout[1]);
+}
+
+pub fn render_modal(frame: &mut Frame, title: &str, message: &str, modal_type: ModalType) {
+    let area = centered_rect(60, 20, frame.area());
+    frame.render_widget(Clear, area);
+    let outer_block = Block::bordered()
+        .title(title)
+        .border_type(BorderType::Rounded)
+        .title_alignment(Alignment::Center);
+    let styled_block = set_modal_status(outer_block, modal_type);
+    let modal_block = Paragraph::new(message)
+        .block(styled_block)
+        .wrap(Wrap { trim: false });
+    frame.render_widget(modal_block, area);
+}
+
+pub fn set_modal_status(block: Block, modal_type: ModalType) -> Block {
+    let mut style = Style::default();
+    style = match modal_type {
+        ModalType::Info => style.blue(),
+        ModalType::Warning => style.yellow(),
+        ModalType::Error => style.red(),
+        _ => style,
+    };
+    block.border_style(style)
 }
