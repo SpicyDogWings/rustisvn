@@ -187,36 +187,36 @@ pub fn set_status_block(block: Block, is_error: bool, is_focused: bool) -> Block
     }
 }
 
-pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let min_width = 40;
-    let min_height = 8;
-    let actual_percent_x = percent_x.max((min_width * 100 / r.width).min(100));
-    let actual_percent_y = percent_y.max((min_height * 100 / r.height).min(100));
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - actual_percent_y) / 2),
-            Constraint::Percentage(actual_percent_y),
-            Constraint::Percentage((100 - actual_percent_y) / 2),
-        ])
-        .split(r);
-    let middle_vertical_area = if popup_layout.len() >= 3 {
-        popup_layout[1]
-    } else {
-        Rect::new(r.x, r.y, r.width.max(min_width), r.height.max(min_height))
-    };
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - actual_percent_x) / 2),
-            Constraint::Percentage(actual_percent_x),
-            Constraint::Percentage((100 - actual_percent_x) / 2),
-        ])
-        .split(middle_vertical_area)[1]
+pub fn centered_rect(r: Rect, text: &str, extra_height: u16) -> Rect {
+    let total_width = r.width;
+    let total_height = r.height;
+    let target_width = (total_width as f32 * 0.75).round() as u16;
+    let max_text_width = target_width.saturating_sub(4); // 4 for border and padding
+    let max_text_width = max_text_width.max(1);
+    let mut current_line_width: u16 = 0;
+    let mut text_height: u16 = 1;
+    for word in text.split(' ') {
+        let word_width = word.len() as u16;
+        if current_line_width.saturating_add(word_width) > max_text_width {
+            text_height += 1;
+            current_line_width = word_width.saturating_add(1); // +1 for the space
+        } else {
+            current_line_width = current_line_width
+                .saturating_add(word_width)
+                .saturating_add(1);
+        }
+    }
+    let actual_width = target_width;
+    let actual_height = text_height
+        .saturating_add(extra_height)
+        .saturating_add(2u16);
+    let x = r.x + (total_width.saturating_sub(actual_width)) / 2;
+    let y = r.y + (total_height.saturating_sub(actual_height)) / 2;
+    Rect::new(x, y, actual_width, actual_height)
 }
 
 pub fn render_confirm_modal(frame: &mut Frame, title: &str, message: &str) {
-    let area = centered_rect(60, 20, frame.area());
+    let area = centered_rect(frame.area(), message, 2);
     frame.render_widget(Clear, area);
     let outer_block = Block::bordered()
         .title(title)
@@ -227,7 +227,7 @@ pub fn render_confirm_modal(frame: &mut Frame, title: &str, message: &str) {
     frame.render_widget(outer_block, area);
     let modal_layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(3), Constraint::Min(1)])
+        .constraints([Constraint::Min(1), Constraint::Min(1)])
         .split(inner_area);
     let message_paraghap = Paragraph::new(message)
         .style(Style::default().fg(Color::White))
@@ -235,7 +235,7 @@ pub fn render_confirm_modal(frame: &mut Frame, title: &str, message: &str) {
     frame.render_widget(message_paraghap, modal_layout[0]);
     let option_layout = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Min(3), Constraint::Min(1)])
+        .constraints([Constraint::Min(1), Constraint::Min(1)])
         .split(modal_layout[1]);
     let yes_text = Paragraph::new("Yes (y)")
         .style(Style::default().fg(Color::Blue))
@@ -248,7 +248,7 @@ pub fn render_confirm_modal(frame: &mut Frame, title: &str, message: &str) {
 }
 
 pub fn render_modal(frame: &mut Frame, title: &str, message: &str, modal_type: ModalType) {
-    let area = centered_rect(60, 20, frame.area());
+    let area = centered_rect(frame.area(), message, 0);
     frame.render_widget(Clear, area);
     let outer_block = Block::bordered()
         .title(title)
